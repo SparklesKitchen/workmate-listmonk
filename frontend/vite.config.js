@@ -8,8 +8,13 @@ export default defineConfig(({ _, mode }) => {
   const env = loadEnv(mode, process.cwd(), '');
   return {
     plugins: [vue()],
-    base: '/admin',
+    // WorkMate serves the owner console below its authenticated SaaS Admin
+    // namespace. Keep the default for ordinary upstream installations.
+    base: env.LISTMONK_ADMIN_BASE_PATH || '/admin',
     mode,
+    define: {
+      'import.meta.env.VUE_APP_ROOT_URL': JSON.stringify(env.LISTMONK_API_ROOT_URL || '/'),
+    },
     resolve: {
       alias: {
         '@': path.resolve(__dirname, './src'),

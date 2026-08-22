@@ -1,12 +1,14 @@
 FROM node:22-bookworm AS frontend
 
 WORKDIR /src
+ARG LISTMONK_ADMIN_BASE_PATH=/admin/
+ARG LISTMONK_API_ROOT_URL=/
 COPY static ./static
 COPY frontend ./frontend
 RUN corepack enable && cd frontend && yarn install --frozen-lockfile
 RUN cd frontend/email-builder && yarn install --frozen-lockfile && yarn build
 RUN mkdir -p frontend/public/static/email-builder && cp -R frontend/email-builder/dist/. frontend/public/static/email-builder/
-RUN cd frontend && yarn build
+RUN cd frontend && LISTMONK_ADMIN_BASE_PATH="$LISTMONK_ADMIN_BASE_PATH" LISTMONK_API_ROOT_URL="$LISTMONK_API_ROOT_URL" yarn build
 
 FROM golang:1.26.1-bookworm AS build
 
