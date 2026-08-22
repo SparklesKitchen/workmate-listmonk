@@ -1,7 +1,9 @@
 FROM node:24-alpine AS frontend
 
+WORKDIR /src
+COPY static ./static
+COPY frontend/package.json frontend/yarn.lock ./frontend/
 WORKDIR /src/frontend
-COPY frontend/package.json frontend/yarn.lock ./
 RUN corepack enable && yarn install --frozen-lockfile
 COPY frontend/ ./
 RUN yarn build
