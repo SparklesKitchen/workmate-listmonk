@@ -1,0 +1,12 @@
+services:
+  app:
+    image: workmate-listmonk:current
+    container_name: workmate-listmonk
+    restart: unless-stopped
+    env_file:
+      - /etc/workmate/workmate-listmonk.env
+    command: [sh, -c, "./listmonk --install --idempotent --yes --config '' && ./listmonk --upgrade --yes --config '' && ./listmonk --config ''"]
+    ports:
+      - "127.0.0.1:9100:9000"
+    volumes:
+      - /opt/workmate/apps/workmate-listmonk/uploads:/listmonk/uploads:rw
