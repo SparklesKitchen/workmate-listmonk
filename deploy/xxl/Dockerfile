@@ -9,7 +9,7 @@ RUN cd frontend/email-builder && yarn install --frozen-lockfile && yarn build
 RUN mkdir -p frontend/public/static/email-builder && cp -R frontend/email-builder/dist/. frontend/public/static/email-builder/
 RUN cd frontend && yarn build
 
-FROM golang:1.24-bookworm AS build
+FROM golang:1.26.1-bookworm AS build
 
 WORKDIR /src
 COPY go.mod go.sum ./
