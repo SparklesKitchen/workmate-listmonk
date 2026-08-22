@@ -1,5 +1,11 @@
 services:
   app:
+    build:
+      context: ../..
+      dockerfile: deploy/xxl/Dockerfile
+      args:
+        LISTMONK_ADMIN_BASE_PATH: /saas-admin/listmonk/admin/
+        LISTMONK_API_ROOT_URL: /saas-admin/listmonk/
     image: workmate-listmonk:current
     container_name: workmate-listmonk
     restart: unless-stopped
