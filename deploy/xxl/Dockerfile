@@ -1,10 +1,8 @@
 FROM node:22-bookworm AS frontend
 
 WORKDIR /src
-COPY frontend/package.json frontend/yarn.lock ./frontend/
-COPY frontend/email-builder/package.json frontend/email-builder/yarn.lock ./frontend/email-builder/
-RUN corepack enable && cd frontend && yarn install --frozen-lockfile
 COPY frontend ./frontend
+RUN corepack enable && cd frontend && yarn install --frozen-lockfile
 RUN cd frontend/email-builder && yarn install --frozen-lockfile && yarn build
 RUN mkdir -p frontend/public/static/email-builder && cp -R frontend/email-builder/dist/. frontend/public/static/email-builder/
 RUN cd frontend && yarn build
