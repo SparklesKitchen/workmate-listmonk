@@ -1,6 +1,7 @@
 FROM node:22-bookworm AS frontend
 
 WORKDIR /src
+COPY static ./static
 COPY frontend ./frontend
 RUN corepack enable && cd frontend && yarn install --frozen-lockfile
 RUN cd frontend/email-builder && yarn install --frozen-lockfile && yarn build
