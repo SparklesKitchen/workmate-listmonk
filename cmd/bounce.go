@@ -16,7 +16,7 @@ import (
 func (a *App) GetBounce(c echo.Context) error {
 	// Fetch one bounce from the DB.
 	id := getID(c)
-	out, err := a.core.GetBounce(id)
+	out, err := a.core.GetBounce(templateScope(c), id)
 	if err != nil {
 		return err
 	}
@@ -36,7 +36,7 @@ func (a *App) GetBounces(c echo.Context) error {
 	)
 
 	// Query and fetch bounces from the DB.
-	res, total, err := a.core.QueryBounces(campID, 0, source, orderBy, order, pg.Offset, pg.Limit)
+	res, total, err := a.core.QueryBounces(templateScope(c), campID, 0, source, orderBy, order, pg.Offset, pg.Limit)
 	if err != nil {
 		return err
 	}
@@ -66,7 +66,7 @@ func (a *App) GetSubscriberBounces(c echo.Context) error {
 	}
 
 	// Query and fetch bounces from the DB.
-	out, _, err := a.core.QueryBounces(0, subID, "", "", "", 0, 1000)
+	out, _, err := a.core.QueryBounces(templateScope(c), 0, subID, "", "", "", 0, 1000)
 	if err != nil {
 		return err
 	}
@@ -93,7 +93,7 @@ func (a *App) DeleteBounces(c echo.Context) error {
 	}
 
 	// Delete bounces from the DB.
-	if err := a.core.DeleteBounces(ids, all); err != nil {
+	if err := a.core.DeleteBounces(templateScope(c), ids, all); err != nil {
 		return err
 	}
 
@@ -104,7 +104,7 @@ func (a *App) DeleteBounces(c echo.Context) error {
 func (a *App) DeleteBounce(c echo.Context) error {
 	// Delete bounces from the DB.
 	id := getID(c)
-	if err := a.core.DeleteBounces([]int{id}, false); err != nil {
+	if err := a.core.DeleteBounces(templateScope(c), []int{id}, false); err != nil {
 		return err
 	}
 
