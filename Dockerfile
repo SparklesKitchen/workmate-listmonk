@@ -6,6 +6,10 @@ COPY frontend/package.json frontend/yarn.lock ./frontend/
 WORKDIR /src/frontend
 RUN corepack enable && yarn install --frozen-lockfile
 COPY frontend/ ./
+WORKDIR /src/frontend/email-builder
+RUN corepack enable && yarn install --frozen-lockfile && yarn build
+RUN mkdir -p /src/frontend/public/static/email-builder && cp dist/* /src/frontend/public/static/email-builder/
+WORKDIR /src/frontend
 # The owner console is mounted below WorkMate SaaS Admin. Compile both the
 # router/assets and API client for that authenticated Caddy prefix; Caddy
 # removes `/saas-admin/listmonk` before forwarding to the one shared runtime.
