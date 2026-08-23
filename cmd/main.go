@@ -210,7 +210,7 @@ func main() {
 		core = initCore(fbOptinNotify, queries, db, i18n, ko)
 
 		// Initialize all messengers, SMTP and postback.
-		msgrs = append(initSMTPMessengers(), initPostbackMessengers(ko)...)
+		msgrs = append(append(initSMTPMessengers(), initWorkMateBrevoMessengers(ko)...), initPostbackMessengers(ko)...)
 
 		// Campaign manager.
 		mgr = initCampaignManager(msgrs, queries, urlCfg, core, media, i18n, ko)

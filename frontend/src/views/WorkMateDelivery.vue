@@ -8,19 +8,23 @@
     </header>
 
     <b-notification type="is-info" :closable="false">
-      Use the SMTP credentials from Brevo or your email provider. The sender address must already be verified by that provider.
+      Choose either a Brevo API key or a generic SMTP connection. The sender address must already be verified by that provider.
     </b-notification>
 
     <form class="box" @submit.prevent="save">
       <b-field label="Delivery provider">
         <b-select v-model="form.provider" expanded>
-          <option value="brevo">Brevo SMTP</option>
-          <option value="smtp">Other SMTP provider</option>
+          <option value="brevo">Brevo API</option>
+          <option value="smtp">Generic SMTP</option>
         </b-select>
       </b-field>
 
       <b-field label="Sender email" message="Campaigns from this workspace always use this sender.">
         <b-input v-model.trim="form.fromEmail" type="email" required />
+      </b-field>
+
+      <b-field v-if="form.provider === 'brevo'" label="Sender name">
+        <b-input v-model.trim="form.senderName" required />
       </b-field>
 
       <template v-if="form.provider === 'smtp'">
@@ -60,10 +64,10 @@
         </div>
       </template>
 
-      <b-field label="SMTP username">
+      <b-field v-if="form.provider === 'smtp'" label="SMTP username">
         <b-input v-model.trim="form.username" required />
       </b-field>
-      <b-field :label="delivery.configured ? 'New SMTP password or key (leave blank to keep it)' : 'SMTP password or key'">
+      <b-field :label="credentialLabel">
         <b-input v-model="form.password" type="password" password-reveal :required="!delivery.configured" />
       </b-field>
 
@@ -89,6 +93,7 @@ export default {
         port: 587,
         username: '',
         password: '',
+        senderName: '',
         authProtocol: 'login',
         tlsType: 'STARTTLS',
       },
@@ -102,6 +107,7 @@ export default {
       this.form = {
         ...this.form,
         provider: delivery.provider || 'smtp',
+        senderName: delivery.senderName || '',
         fromEmail: delivery.fromEmail,
         host: delivery.host,
         port: delivery.port,
@@ -123,6 +129,12 @@ export default {
       } finally {
         this.saving = false;
       }
+    },
+  },
+  computed: {
+    credentialLabel() {
+      const kind = this.form.provider === 'brevo' ? 'Brevo API key' : 'SMTP password';
+      return this.delivery.configured ? `New ${kind} (leave blank to keep it)` : kind;
     },
   },
 };

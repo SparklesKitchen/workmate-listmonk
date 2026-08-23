@@ -45,6 +45,13 @@ func workMateDeliverySMTPName(user auth.User) string {
 	return "email-" + user.ListRoleName.String
 }
 
+func workMateDeliveryBrevoName(user auth.User) string {
+	if !user.ListRoleName.Valid {
+		return ""
+	}
+	return "brevo-" + user.ListRoleName.String
+}
+
 func (a *App) workMateDeliveryUser(c echo.Context) (auth.User, error) {
 	user := auth.GetUser(c)
 	if !isWorkMateCustomer(user) || user.ListRoleID == nil || !user.ListRoleName.Valid || !strings.HasPrefix(user.ListRoleName.String, "wm-lr-") {
@@ -65,6 +72,15 @@ func (a *App) GetWorkMateDelivery(c echo.Context) error {
 		return err
 	}
 	name := workMateDeliverySMTPName(user)
+	brevoName := workMateDeliveryBrevoName(user)
+	for _, messenger := range settings.Messengers {
+		if messenger.Name == brevoName && messenger.Enabled {
+			return c.JSON(http.StatusOK, okResp{workMateDeliveryResponse{
+				Configured: true, Provider: "brevo", SenderName: messenger.RootURL,
+				FromEmail: messenger.Username,
+			}})
+		}
+	}
 	for _, smtp := range settings.SMTP {
 		if smtp.Name == name && smtp.Enabled {
 			provider := "smtp"
@@ -103,6 +119,48 @@ func (a *App) UpdateWorkMateDelivery(c echo.Context) error {
 	}
 	name := workMateDeliverySMTPName(user)
 	from := email.NormalizeAddr(req.FromEmail)
+	if req.Provider == "brevo" {
+		brevoName := workMateDeliveryBrevoName(user)
+		found := false
+		for i := range settings.Messengers {
+			if settings.Messengers[i].Name != brevoName {
+				continue
+			}
+			found = true
+			if req.Password == "" {
+				req.Password = settings.Messengers[i].Password
+			}
+			settings.Messengers[i].Enabled = true
+			settings.Messengers[i].Name = brevoName
+			settings.Messengers[i].Username = from
+			settings.Messengers[i].Password = req.Password
+			settings.Messengers[i].RootURL = req.SenderName
+			settings.Messengers[i].MaxConns = 5
+			settings.Messengers[i].Timeout = "30s"
+			settings.Messengers[i].MaxMsgRetries = 2
+			break
+		}
+		if !found {
+			if req.Password == "" {
+				return echo.NewHTTPError(http.StatusBadRequest, "a Brevo API key is required for a new delivery connection")
+			}
+			settings.Messengers = append(settings.Messengers, struct {
+				UUID          string `json:"uuid"`
+				Enabled       bool   `json:"enabled"`
+				Name          string `json:"name"`
+				RootURL       string `json:"root_url"`
+				Username      string `json:"username"`
+				Password      string `json:"password,omitempty"`
+				MaxConns      int    `json:"max_conns"`
+				Timeout       string `json:"timeout"`
+				MaxMsgRetries int    `json:"max_msg_retries"`
+			}{Enabled: true, Name: brevoName, RootURL: req.SenderName, Username: from, Password: req.Password, MaxConns: 5, Timeout: "30s", MaxMsgRetries: 2})
+		}
+		if err := a.core.UpdateSettings(settings); err != nil {
+			return err
+		}
+		return a.handleSettingsRestart(c)
+	}
 	found := false
 	for i := range settings.SMTP {
 		if settings.SMTP[i].Name != name {
@@ -174,14 +232,8 @@ func firstWorkMateFromAddress(addresses []string) string {
 
 func validateWorkMateDeliveryRequest(req *workMateDeliveryRequest) error {
 	req.Provider = strings.TrimSpace(strings.ToLower(req.Provider))
-	if req.Provider == "brevo" {
-		req.Host = "smtp-relay.brevo.com"
-		req.Port = 587
-		req.AuthProtocol = "login"
-		req.TLSType = "STARTTLS"
-	}
 	if req.Provider != "smtp" && req.Provider != "brevo" {
-		return echo.NewHTTPError(http.StatusBadRequest, "delivery provider must be Brevo or SMTP")
+		return echo.NewHTTPError(http.StatusBadRequest, "delivery provider must be Brevo API or SMTP")
 	}
 	req.Host = strings.TrimSpace(req.Host)
 	req.Username = strings.TrimSpace(req.Username)
@@ -189,6 +241,13 @@ func validateWorkMateDeliveryRequest(req *workMateDeliveryRequest) error {
 	parsed, err := mail.ParseAddress(req.FromEmail)
 	if err != nil || req.FromEmail == "" || parsed.Address != req.FromEmail {
 		return echo.NewHTTPError(http.StatusBadRequest, "a valid sender email is required")
+	}
+	if req.Provider == "brevo" {
+		req.SenderName = strings.TrimSpace(req.SenderName)
+		if req.SenderName == "" {
+			return echo.NewHTTPError(http.StatusBadRequest, "a Brevo sender name is required")
+		}
+		return nil
 	}
 	if req.Host == "" || req.Port < 1 || req.Port > 65535 || req.Username == "" {
 		return echo.NewHTTPError(http.StatusBadRequest, "SMTP host, port and username are required")
@@ -213,6 +272,14 @@ func (a *App) applyWorkMateCampaignDelivery(user auth.User, campaign *campReq) e
 		return err
 	}
 	name := workMateDeliverySMTPName(user)
+	brevoName := workMateDeliveryBrevoName(user)
+	for _, messenger := range settings.Messengers {
+		if messenger.Name == brevoName && messenger.Enabled && messenger.Username != "" {
+			campaign.Messenger = brevoName
+			campaign.FromEmail = messenger.Username
+			return nil
+		}
+	}
 	for _, smtp := range settings.SMTP {
 		if smtp.Name == name && smtp.Enabled && len(smtp.FromAddresses) == 1 {
 			campaign.Messenger = name

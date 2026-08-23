@@ -44,6 +44,7 @@ import (
 	"github.com/knadh/listmonk/internal/media"
 	"github.com/knadh/listmonk/internal/media/providers/filesystem"
 	"github.com/knadh/listmonk/internal/media/providers/s3"
+	"github.com/knadh/listmonk/internal/messenger/brevo"
 	"github.com/knadh/listmonk/internal/messenger/email"
 	"github.com/knadh/listmonk/internal/messenger/postback"
 	"github.com/knadh/listmonk/internal/notifs"
@@ -676,6 +677,9 @@ func initSMTPMessengers() []manager.Messenger {
 		if !item.Bool("enabled") {
 			continue
 		}
+		if strings.HasPrefix(item.String("name"), "brevo-") {
+			continue
+		}
 
 		// Read the SMTP config.
 		var s email.Server
@@ -714,6 +718,21 @@ func initSMTPMessengers() []manager.Messenger {
 	return out
 }
 
+func initWorkMateBrevoMessengers(ko *koanf.Koanf) []manager.Messenger {
+	var out []manager.Messenger
+	for _, item := range ko.Slices("messengers") {
+		if !item.Bool("enabled") || !strings.HasPrefix(item.String("name"), "brevo-") {
+			continue
+		}
+		m, err := brevo.New(brevo.Options{Name: item.String("name"), APIKey: item.String("password"), SenderEmail: item.String("username"), SenderName: item.String("root_url")})
+		if err != nil {
+			lo.Fatalf("error initializing Brevo messenger: %v", err)
+		}
+		out = append(out, m)
+	}
+	return out
+}
+
 // initPostbackMessengers initializes and returns all the enabled
 // HTTP postback messenger backends.
 func initPostbackMessengers(ko *koanf.Koanf) []manager.Messenger {
@@ -725,6 +744,9 @@ func initPostbackMessengers(ko *koanf.Koanf) []manager.Messenger {
 	var out []manager.Messenger
 	for _, item := range items {
 		if !item.Bool("enabled") {
+			continue
+		}
+		if strings.HasPrefix(item.String("name"), "brevo-") {
 			continue
 		}
 
