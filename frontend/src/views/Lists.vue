@@ -66,7 +66,7 @@
           <a :href="`/lists/${props.row.id}`" @click.prevent="showEditForm(props.row)">
             {{ props.row.name }}
           </a>
-          <b-taglist>
+          <b-taglist v-if="!$isWorkMateCustomer">
             <b-tag class="is-small" v-for="t in props.row.tags" :key="t">
               {{ t }}
             </b-tag>
