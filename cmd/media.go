@@ -56,7 +56,7 @@ func (a *App) UploadMedia(c echo.Context) error {
 	fName := makeFilename(file.Filename)
 
 	// If the filename already exists in the DB, make it unique by adding a random suffix.
-	if _, err := a.core.GetMedia(0, "", fName, a.media); err == nil {
+	if _, err := a.core.GetMedia(templateScope(c), 0, "", fName, a.media); err == nil {
 		suffix, err := generateRandomString(6)
 		if err != nil {
 			a.log.Printf("error generating random string: %v", err)
@@ -130,7 +130,7 @@ func (a *App) UploadMedia(c echo.Context) error {
 	}
 
 	// Insert the media into the DB.
-	m, err := a.core.InsertMedia(fName, thumbfName, contentType, meta, a.cfg.MediaUpload.Provider, a.media)
+	m, err := a.core.InsertMedia(templateScope(c), fName, thumbfName, contentType, meta, a.cfg.MediaUpload.Provider, a.media)
 	if err != nil {
 		cleanUp = true
 		return err
@@ -147,7 +147,7 @@ func (a *App) GetAllMedia(c echo.Context) error {
 		pg = a.pg.NewFromURL(c.Request().URL.Query())
 	)
 	// Fetch the media items from the DB.
-	res, total, err := a.core.QueryMedia(a.cfg.MediaUpload.Provider, a.media, query, pg.Offset, pg.Limit)
+	res, total, err := a.core.QueryMedia(templateScope(c), a.cfg.MediaUpload.Provider, a.media, query, pg.Offset, pg.Limit)
 	if err != nil {
 		return err
 	}
@@ -166,7 +166,7 @@ func (a *App) GetAllMedia(c echo.Context) error {
 func (a *App) GetMedia(c echo.Context) error {
 	// Fetch the media item from the DB.
 	id := getID(c)
-	out, err := a.core.GetMedia(id, "", "", a.media)
+	out, err := a.core.GetMedia(templateScope(c), id, "", "", a.media)
 	if err != nil {
 		return err
 	}
@@ -179,7 +179,7 @@ func (a *App) DeleteMedia(c echo.Context) error {
 
 	// Delete the media from the DB. The query returns the filename.
 	id := getID(c)
-	fname, err := a.core.DeleteMedia(id)
+	fname, err := a.core.DeleteMedia(templateScope(c), id)
 	if err != nil {
 		return err
 	}

@@ -132,6 +132,7 @@ func (a *App) workMateCustomerRole() (auth.Role, error) {
 		auth.PermCampaignsGet, auth.PermCampaignsManage, auth.PermCampaignsGetAnalytics, auth.PermCampaignsSend,
 		auth.PermTemplatesGet, auth.PermTemplatesManage,
 		auth.PermBouncesGet,
+		auth.PermMediaGet, auth.PermMediaManage,
 	}
 	roles, err := a.core.GetRoles()
 	if err != nil {

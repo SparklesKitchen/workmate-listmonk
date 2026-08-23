@@ -172,6 +172,7 @@ CREATE TABLE media (
     id               SERIAL PRIMARY KEY,
     uuid uuid        NOT NULL UNIQUE,
     provider         TEXT NOT NULL DEFAULT '',
+    list_id          INTEGER NULL REFERENCES lists(id) ON DELETE CASCADE,
     filename         TEXT NOT NULL,
     content_type     TEXT NOT NULL DEFAULT 'application/octet-stream',
     thumb            TEXT NOT NULL,
@@ -179,6 +180,7 @@ CREATE TABLE media (
     created_at       TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 DROP INDEX IF EXISTS idx_media_filename; CREATE INDEX idx_media_filename ON media(provider, filename);
+CREATE INDEX idx_media_list_id ON media(list_id);
 
 -- campaign_media
 DROP TABLE IF EXISTS campaign_media CASCADE;

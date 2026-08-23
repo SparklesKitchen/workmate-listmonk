@@ -87,7 +87,7 @@ func (s *store) UpdateCampaignCounts(campID int, toSend int, sent int, lastSubID
 
 // GetAttachment fetches a media attachment blob.
 func (s *store) GetAttachment(mediaID int) (models.Attachment, error) {
-	m, err := s.core.GetMedia(mediaID, "", "", s.media)
+	m, err := s.core.GetMedia(0, mediaID, "", "", s.media)
 	if err != nil {
 		return models.Attachment{}, err
 	}
@@ -109,7 +109,7 @@ func (s *store) GetAttachment(mediaID int) (models.Attachment, error) {
 // uniform across filesystem and S3 providers because both use the same media
 // store interface; the first match for a given filename is returned.
 func (s *store) GetInlineAttachmentByFilename(filename string) (models.Attachment, string, error) {
-	m, err := s.core.GetMedia(0, "", filename, s.media)
+	m, err := s.core.GetMedia(0, 0, "", filename, s.media)
 	if err != nil {
 		return models.Attachment{}, "", err
 	}
