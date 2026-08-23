@@ -13,7 +13,7 @@ var bounceQuerySortFields = []string{"email", "campaign_name", "source", "create
 
 // QueryBounces retrieves paginated bounce entries based on the given params.
 // It also returns the total number of bounce records in the DB.
-func (c *Core) QueryBounces(listID, campID, subID int, source, orderBy, order string, offset, limit int) ([]models.Bounce, int, error) {
+func (c *Core) QueryBounces(listIDs []int, campID, subID int, source, orderBy, order string, offset, limit int) ([]models.Bounce, int, error) {
 	if !strSliceContains(orderBy, bounceQuerySortFields) {
 		orderBy = "created_at"
 	}
@@ -23,7 +23,7 @@ func (c *Core) QueryBounces(listID, campID, subID int, source, orderBy, order st
 
 	out := []models.Bounce{}
 	stmt := strings.ReplaceAll(c.q.QueryBounces, "%order%", orderBy+" "+order)
-	if err := c.db.Select(&out, stmt, 0, campID, subID, source, listID, offset, limit); err != nil {
+	if err := c.db.Select(&out, stmt, 0, campID, subID, source, pq.Array(listIDs), offset, limit); err != nil {
 		c.log.Printf("error fetching bounces: %v", err)
 		return nil, 0, echo.NewHTTPError(http.StatusInternalServerError,
 			c.i18n.Ts("globals.messages.errorFetching", "name", "{globals.terms.bounce}", "error", pqErrMsg(err)))
@@ -38,10 +38,10 @@ func (c *Core) QueryBounces(listID, campID, subID int, source, orderBy, order st
 }
 
 // GetBounce retrieves bounce entries based on the given params.
-func (c *Core) GetBounce(listID, id int) (models.Bounce, error) {
+func (c *Core) GetBounce(listIDs []int, id int) (models.Bounce, error) {
 	var out []models.Bounce
 	stmt := strings.ReplaceAll(c.q.QueryBounces, "%order%", "id "+SortAsc)
-	if err := c.db.Select(&out, stmt, id, 0, 0, "", listID, 0, 1); err != nil {
+	if err := c.db.Select(&out, stmt, id, 0, 0, "", pq.Array(listIDs), 0, 1); err != nil {
 		c.log.Printf("error fetching bounces: %v", err)
 		return models.Bounce{}, echo.NewHTTPError(http.StatusInternalServerError,
 			c.i18n.Ts("globals.messages.errorFetching", "name", "{globals.terms.bounce}", "error", pqErrMsg(err)))
@@ -97,13 +97,13 @@ func (c *Core) BlocklistBouncedSubscribers() error {
 }
 
 // DeleteBounce deletes a list.
-func (c *Core) DeleteBounce(listID, id int) error {
-	return c.DeleteBounces(listID, []int{id}, false)
+func (c *Core) DeleteBounce(listIDs []int, id int) error {
+	return c.DeleteBounces(listIDs, []int{id}, false)
 }
 
 // DeleteBounces deletes multiple lists.
-func (c *Core) DeleteBounces(listID int, ids []int, all bool) error {
-	if _, err := c.q.DeleteBounces.Exec(pq.Array(ids), all, listID); err != nil {
+func (c *Core) DeleteBounces(listIDs []int, ids []int, all bool) error {
+	if _, err := c.q.DeleteBounces.Exec(pq.Array(ids), all, pq.Array(listIDs)); err != nil {
 		c.log.Printf("error deleting lists: %v", err)
 		return echo.NewHTTPError(http.StatusInternalServerError,
 			c.i18n.Ts("globals.messages.errorDeleting", "name", "{globals.terms.list}", "error", pqErrMsg(err)))

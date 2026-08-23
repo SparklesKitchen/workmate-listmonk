@@ -52,11 +52,17 @@ WHERE ($1 = 0 OR bounces.id = $1)
     AND ($2 = 0 OR bounces.campaign_id = $2)
     AND ($3 = 0 OR bounces.subscriber_id = $3)
     AND ($4 = '' OR bounces.source = $4)
-    AND ($5 = 0 OR EXISTS (SELECT 1 FROM campaign_lists WHERE campaign_lists.campaign_id = bounces.campaign_id AND campaign_lists.list_id = $5))
+    AND (CARDINALITY($5::INT[]) = 0
+        OR (bounces.campaign_id IS NOT NULL AND EXISTS (SELECT 1 FROM campaign_lists WHERE campaign_lists.campaign_id = bounces.campaign_id AND campaign_lists.list_id = ANY($5::INT[])))
+        OR (bounces.campaign_id IS NULL AND EXISTS (SELECT 1 FROM subscriber_lists WHERE subscriber_lists.subscriber_id = bounces.subscriber_id AND subscriber_lists.list_id = ANY($5::INT[]))))
 ORDER BY %order% OFFSET $6 LIMIT (CASE WHEN $7 < 1 THEN NULL ELSE $7 END);
 
 -- name: delete-bounces
-DELETE FROM bounces WHERE ($2 = TRUE OR id = ANY($1)) AND ($3 = 0 OR EXISTS (SELECT 1 FROM campaign_lists WHERE campaign_lists.campaign_id = bounces.campaign_id AND campaign_lists.list_id = $3));
+DELETE FROM bounces
+WHERE ($2 = TRUE OR id = ANY($1))
+  AND (CARDINALITY($3::INT[]) = 0
+    OR (bounces.campaign_id IS NOT NULL AND EXISTS (SELECT 1 FROM campaign_lists WHERE campaign_lists.campaign_id = bounces.campaign_id AND campaign_lists.list_id = ANY($3::INT[])))
+    OR (bounces.campaign_id IS NULL AND EXISTS (SELECT 1 FROM subscriber_lists WHERE subscriber_lists.subscriber_id = bounces.subscriber_id AND subscriber_lists.list_id = ANY($3::INT[]))));
 
 -- name: delete-bounces-by-subscriber
 WITH sub AS (
