@@ -1,6 +1,7 @@
 package migrations
 
 import (
+	"encoding/json"
 	"log"
 
 	"github.com/jmoiron/sqlx"
@@ -12,6 +13,10 @@ const workMateReachCSS = `body,#app,#app .main{background:#071225!important;colo
 
 // V6_5_0 replaces the temporary high-contrast appearance with the Reach dark-blue product skin.
 func V6_5_0(db *sqlx.DB, fs stuffbin.FileSystem, ko *koanf.Koanf, lo *log.Logger) error {
-	_, err := db.Exec(`UPDATE settings SET value = $1::jsonb WHERE key IN ('appearance.admin.custom_css', 'appearance.public.custom_css')`, `"`+workMateReachCSS+`"`)
+	value, err := json.Marshal(workMateReachCSS)
+	if err != nil {
+		return err
+	}
+	_, err = db.Exec(`UPDATE settings SET value = $1::jsonb WHERE key IN ('appearance.admin.custom_css', 'appearance.public.custom_css')`, string(value))
 	return err
 }
