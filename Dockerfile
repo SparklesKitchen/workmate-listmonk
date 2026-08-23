@@ -17,6 +17,7 @@ COPY . ./
 COPY --from=frontend /src/frontend/dist ./frontend/dist
 RUN CGO_ENABLED=0 go build -o listmonk -ldflags="-s -w" ./cmd
 RUN go install github.com/knadh/stuffbin/...
+RUN mkdir -p /out
 RUN /go/bin/stuffbin -a stuff -in listmonk -out /out/listmonk config.toml.sample schema.sql queries:/queries permissions.json static/public:/public static/email-templates frontend/dist:/admin i18n:/i18n
 
 FROM alpine:latest
