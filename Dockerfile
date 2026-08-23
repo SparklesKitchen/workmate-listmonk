@@ -9,7 +9,7 @@ COPY frontend/ ./
 # The owner console is mounted below WorkMate SaaS Admin. Compile both the
 # router/assets and API client for that authenticated Caddy prefix; Caddy
 # removes `/saas-admin/listmonk` before forwarding to the one shared runtime.
-RUN LISTMONK_ADMIN_BASE_PATH=/saas-admin/listmonk/admin LISTMONK_API_ROOT_URL=/saas-admin/listmonk yarn build
+RUN LISTMONK_ADMIN_BASE_PATH=/saas-admin/listmonk/admin/ LISTMONK_API_ROOT_URL=/saas-admin/listmonk yarn build
 
 FROM golang:1.26-alpine AS builder
 
