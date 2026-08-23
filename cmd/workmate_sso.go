@@ -59,20 +59,10 @@ func (a *App) WorkMateProvision(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusForbidden, "invalid WorkMate provisioning handoff")
 	}
 	if assertion.ListID > 0 {
-		list, err := a.core.GetList(assertion.ListID, "")
-		if err != nil {
+		if err := a.ensureWorkMateAudiencePublic(assertion.ListID); err != nil {
 			return err
 		}
-		// WorkMate seeds one usable audience per workspace. It must be public so
-		// native Listmonk Forms can generate an embeddable subscribe form while
-		// the workspace list role continues to enforce all admin-side isolation.
-		if list.Type != "public" {
-			list.Type = "public"
-			if _, err := a.core.UpdateList(list.ID, list); err != nil {
-				return err
-			}
-		}
-		return c.JSON(http.StatusOK, okResp{map[string]int{"listmonk_list_id": list.ID}})
+		return c.JSON(http.StatusOK, okResp{map[string]int{"listmonk_list_id": assertion.ListID}})
 	}
 
 	workMateProvisionMu.Lock()
@@ -112,6 +102,9 @@ func (a *App) WorkMateCustomerSSO(c echo.Context) error {
 	if !ok || !validWorkMateCustomerAssertion(assertion) {
 		return echo.NewHTTPError(http.StatusForbidden, "invalid WorkMate Reach handoff")
 	}
+	if err := a.ensureWorkMateAudiencePublic(assertion.ListID); err != nil {
+		return err
+	}
 
 	userRole, err := a.workMateCustomerRole()
 	if err != nil {
@@ -131,6 +124,21 @@ func (a *App) WorkMateCustomerSSO(c echo.Context) error {
 	c.Response().Header().Set("Cache-Control", "no-store")
 	c.Response().Header().Set("Referrer-Policy", "no-referrer")
 	return c.Redirect(http.StatusFound, uriAdmin)
+}
+
+func (a *App) ensureWorkMateAudiencePublic(listID int) error {
+	list, err := a.core.GetList(listID, "")
+	if err != nil {
+		return err
+	}
+	// WorkMate seeds one usable audience per workspace. It must be public so
+	// native Listmonk Forms can generate an embeddable subscribe form while
+	// the workspace list role continues to enforce all admin-side isolation.
+	if list.Type != "public" {
+		list.Type = "public"
+		_, err = a.core.UpdateList(list.ID, list)
+	}
+	return err
 }
 
 type workMateAssertion struct {
