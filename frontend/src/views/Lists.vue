@@ -18,7 +18,7 @@
         </div>
       </div>
       <div class="column has-text-right">
-        <b-field v-if="$can('lists:manage_all')" expanded>
+        <b-field v-if="$can('lists:manage_all') || profile.listRole" expanded>
           <b-button expanded type="is-primary" icon-left="plus" class="btn-new" @click="showNewForm" data-cy="btn-new">
             {{ $t('globals.buttons.new') }}
           </b-button>
@@ -356,7 +356,7 @@ export default Vue.extend({
   },
 
   computed: {
-    ...mapState(['loading', 'settings']),
+    ...mapState(['loading', 'settings', 'profile']),
 
     numSelectedLists() {
       return this.bulk.all ? this.lists.total : this.bulk.checked.length;

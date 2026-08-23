@@ -62,7 +62,7 @@
         <b-button @click="$parent.close()">
           {{ $t('globals.buttons.close') }}
         </b-button>
-        <b-button v-if="$can('lists:manage_all') || $canList(data.id, 'list:manage')" native-type="submit"
+        <b-button v-if="$can('lists:manage_all') || (!isEditing && profile.listRole) || $canList(data.id, 'list:manage')" native-type="submit"
           type="is-primary" :loading="loading.lists" data-cy="btn-save">
           {{ $t('globals.buttons.save') }}
         </b-button>
