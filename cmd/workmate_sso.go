@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/knadh/listmonk/internal/auth"
@@ -19,6 +20,11 @@ import (
 )
 
 const workMateCustomerRoleName = "WorkMate Customer"
+
+// Listmonk is one shared WorkMate runtime. Serialise first-workspace list
+// creation inside that runtime so parallel launches cannot create two audience
+// lists before WorkMate OS persists the mapping receipt.
+var workMateProvisionMu sync.Mutex
 
 // WorkMateAdminSSO accepts a short-lived assertion issued only by the
 // authenticated WorkMate SaaS Admin service. It deliberately logs in the
@@ -52,6 +58,16 @@ func (a *App) WorkMateProvision(c echo.Context) error {
 	if !ok || assertion.Kind != "workspace-provision" || assertion.Tenant == "" || assertion.Workspace == "" || assertion.Name == "" {
 		return echo.NewHTTPError(http.StatusForbidden, "invalid WorkMate provisioning handoff")
 	}
+	if assertion.ListID > 0 {
+		list, err := a.core.GetList(assertion.ListID, "")
+		if err != nil {
+			return err
+		}
+		return c.JSON(http.StatusOK, okResp{map[string]int{"listmonk_list_id": list.ID}})
+	}
+
+	workMateProvisionMu.Lock()
+	defer workMateProvisionMu.Unlock()
 	tag := "workmate-workspace-" + workMateWorkspaceRoleID(assertion.Tenant, assertion.Workspace)
 	lists, err := a.core.GetLists("", "", true, nil)
 	if err != nil {
