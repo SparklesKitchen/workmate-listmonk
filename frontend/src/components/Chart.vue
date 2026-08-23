@@ -7,6 +7,18 @@
 <script>
 import Chart from 'chart.js/auto';
 
+const chartText = '#cbd9ed';
+const chartGrid = 'rgba(132, 165, 202, 0.22)';
+const chartTooltip = '#0b1b35';
+
+const darkTooltip = {
+  backgroundColor: chartTooltip,
+  borderColor: '#315a79',
+  borderWidth: 1,
+  titleColor: '#f3f8ff',
+  bodyColor: chartText,
+};
+
 const DEFAULT_DONUT = {
   type: 'doughnut',
   data: {},
@@ -19,11 +31,7 @@ const DEFAULT_DONUT = {
         display: false,
       },
       tooltip: {
-        backgroundColor: '#fff',
-        borderColor: '#ddd',
-        borderWidth: 1,
-        titleColor: '#666',
-        bodyColor: '#666',
+        ...darkTooltip,
         bodyFont: {
           size: 15,
         },
@@ -59,10 +67,7 @@ const DEFAULT_LINE = {
         display: false,
       },
       tooltip: {
-        backgroundColor: '#fff',
-        borderColor: '#ddd',
-        borderWidth: 1,
-        bodyColor: '#666',
+        ...darkTooltip,
         displayColors: true,
         bodyFont: {
           size: 15,
@@ -74,14 +79,18 @@ const DEFAULT_LINE = {
     scales: {
       x: {
         grid: {
-          display: false,
+          color: chartGrid,
+        },
+        ticks: {
+          color: chartText,
         },
       },
       y: {
         grid: {
-          display: false,
+          color: chartGrid,
         },
         ticks: {
+          color: chartText,
           precision: 0,
         },
       },
@@ -102,11 +111,7 @@ const DEFAULT_BAR = {
         display: false,
       },
       tooltip: {
-        backgroundColor: '#fff',
-        borderColor: '#ddd',
-        borderWidth: 1,
-        titleColor: '#666',
-        bodyColor: '#666',
+        ...darkTooltip,
         bodyFont: {
           size: 15,
         },
@@ -117,12 +122,18 @@ const DEFAULT_BAR = {
     scales: {
       x: {
         grid: {
-          display: false,
+          color: chartGrid,
+        },
+        ticks: {
+          color: chartText,
         },
       },
       y: {
         grid: {
-          display: false,
+          color: chartGrid,
+        },
+        ticks: {
+          color: chartText,
         },
       },
     },
