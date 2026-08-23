@@ -251,6 +251,7 @@ func initHTTPHandlers(e *echo.Echo, a *App) {
 		g.GET(path.Join(uriAdmin, "/reset"), a.ResetPage)
 		g.POST(path.Join(uriAdmin, "/reset"), a.ResetPage)
 		g.GET("/auth/workmate-admin", a.WorkMateAdminSSO)
+		g.GET("/auth/workmate-customer", a.WorkMateCustomerSSO)
 
 		if a.cfg.Security.OIDC.Enabled {
 			g.POST("/auth/oidc", a.OIDCLogin)
