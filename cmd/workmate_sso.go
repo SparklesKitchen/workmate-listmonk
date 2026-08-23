@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/knadh/listmonk/internal/auth"
+	"github.com/knadh/listmonk/models"
 	"github.com/labstack/echo/v4"
 	"github.com/lib/pq"
 	"gopkg.in/volatiletech/null.v6"
@@ -40,6 +41,34 @@ func (a *App) WorkMateAdminSSO(c echo.Context) error {
 	c.Response().Header().Set("Cache-Control", "no-store")
 	c.Response().Header().Set("Referrer-Policy", "no-referrer")
 	return c.Redirect(http.StatusFound, uriAdmin)
+}
+
+func (a *App) WorkMateProvision(c echo.Context) error {
+	secret := strings.TrimSpace(os.Getenv("WORKMATE_CUSTOMER_SSO_SECRET"))
+	if secret == "" {
+		secret = strings.TrimSpace(os.Getenv("WORKMATE_ADMIN_SSO_SECRET"))
+	}
+	assertion, ok := readWorkMateAssertion(c.QueryParam("handoff"), secret, time.Now())
+	if !ok || assertion.Kind != "workspace-provision" || assertion.Tenant == "" || assertion.Workspace == "" || assertion.Name == "" {
+		return echo.NewHTTPError(http.StatusForbidden, "invalid WorkMate provisioning handoff")
+	}
+	tag := "workmate-workspace-" + workMateWorkspaceRoleID(assertion.Tenant, assertion.Workspace)
+	lists, err := a.core.GetLists("", "", true, nil)
+	if err != nil {
+		return err
+	}
+	for _, list := range lists {
+		for _, existing := range list.Tags {
+			if existing == tag {
+				return c.JSON(http.StatusOK, okResp{map[string]int{"listmonk_list_id": list.ID}})
+			}
+		}
+	}
+	list, err := a.core.CreateList(models.List{Name: assertion.Name + " audience", Type: "private", Optin: "single", Status: "active", Tags: []string{tag}})
+	if err != nil {
+		return err
+	}
+	return c.JSON(http.StatusCreated, okResp{map[string]int{"listmonk_list_id": list.ID}})
 }
 
 // WorkMateCustomerSSO creates a native, passwordless Listmonk user scoped to
