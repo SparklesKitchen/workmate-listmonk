@@ -63,6 +63,15 @@ func (a *App) WorkMateProvision(c echo.Context) error {
 		if err != nil {
 			return err
 		}
+		// WorkMate seeds one usable audience per workspace. It must be public so
+		// native Listmonk Forms can generate an embeddable subscribe form while
+		// the workspace list role continues to enforce all admin-side isolation.
+		if list.Type != "public" {
+			list.Type = "public"
+			if _, err := a.core.UpdateList(list.ID, list); err != nil {
+				return err
+			}
+		}
 		return c.JSON(http.StatusOK, okResp{map[string]int{"listmonk_list_id": list.ID}})
 	}
 
@@ -80,7 +89,7 @@ func (a *App) WorkMateProvision(c echo.Context) error {
 			}
 		}
 	}
-	list, err := a.core.CreateList(models.List{Name: assertion.Name + " audience", Type: "private", Optin: "single", Status: "active", Tags: []string{tag}})
+	list, err := a.core.CreateList(models.List{Name: assertion.Name + " audience", Type: "public", Optin: "single", Status: "active", Tags: []string{tag}})
 	if err != nil {
 		return err
 	}
