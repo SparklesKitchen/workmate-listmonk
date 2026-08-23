@@ -5,6 +5,7 @@ import (
 	"html/template"
 	"net/http"
 	"regexp"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -216,6 +217,18 @@ func templateScope(c echo.Context) int {
 	all, listIDs := user.GetPermittedLists(auth.PermTypeGet)
 	if all {
 		return 0
+	}
+	if len(listIDs) == 0 {
+		return -1
+	}
+	// A WorkMate customer may create several lists in one workspace. Templates
+	// and media have one native owner-list column, so anchor them to the first
+	// permitted workspace list. Every permitted list in this role belongs to
+	// that one workspace; this never turns a workspace boundary into a global
+	// resource scope.
+	if user.UserRole.Name == "WorkMate Customer" {
+		sort.Ints(listIDs)
+		return listIDs[0]
 	}
 	if len(listIDs) != 1 {
 		return -1

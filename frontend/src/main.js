@@ -17,6 +17,10 @@ Vue.config.productionTip = false;
 
 // Setup the router.
 router.beforeEach((to, from, next) => {
+  if (Vue.prototype.$isWorkMateCustomer && to.name === 'userProfile') {
+    next('/');
+    return;
+  }
   if (to.matched.length === 0) {
     next('/404');
   } else {
@@ -34,6 +38,11 @@ router.afterEach((to) => {
 async function initConfig(app) {
   // Load logged in user profile, server side config, and the language file before mounting the app.
   const [profile, cfg] = await Promise.all([api.getUserProfile(), api.getServerConfig()]);
+  Vue.prototype.$isWorkMateCustomer = profile.userRole && profile.userRole.name === 'WorkMate Customer';
+
+  if (Vue.prototype.$isWorkMateCustomer && router.history.current.name === 'userProfile') {
+    await router.replace('/');
+  }
 
   const lang = await api.getLang(cfg.lang);
   i18n.locale = cfg.lang;

@@ -228,6 +228,12 @@ func (a *App) GetUserProfile(c echo.Context) error {
 	// Blank out the password hash in the response.
 	user.Password.String = ""
 	user.Password.Valid = false
+	if isWorkMateCustomer(user) {
+		// This account is an internal, passwordless SSO principal. Never expose
+		// its generated username or session e-mail in the customer UI/API.
+		user.Username = user.Name
+		user.Email = null.String{}
+	}
 
 	return c.JSON(http.StatusOK, okResp{user})
 }
@@ -236,6 +242,9 @@ func (a *App) GetUserProfile(c echo.Context) error {
 func (a *App) UpdateUserProfile(c echo.Context) error {
 	// Get the authenticated user.
 	user := auth.GetUser(c)
+	if isWorkMateCustomer(user) {
+		return echo.NewHTTPError(http.StatusForbidden, "WorkMate manages this profile")
+	}
 
 	// Incoming params.
 	u := auth.User{}

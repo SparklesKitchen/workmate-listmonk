@@ -17,6 +17,8 @@ import (
 	"gopkg.in/volatiletech/null.v6"
 )
 
+const workMateCustomerRoleName = "WorkMate Customer"
+
 // WorkMateAdminSSO accepts a short-lived assertion issued only by the
 // authenticated WorkMate SaaS Admin service. It deliberately logs in the
 // existing Listmonk super-admin account; no Listmonk credential is exposed to
@@ -126,7 +128,6 @@ func workMateScopedID(prefix, tenant, workspace, subject string) string {
 }
 
 func (a *App) workMateCustomerRole() (auth.Role, error) {
-	const name = "WorkMate Customer"
 	permissions := pq.StringArray{
 		auth.PermSubscribersGet, auth.PermSubscribersGetAll, auth.PermSubscribersManage, auth.PermSubscribersImport,
 		auth.PermCampaignsGet, auth.PermCampaignsManage, auth.PermCampaignsGetAnalytics, auth.PermCampaignsSend,
@@ -139,11 +140,15 @@ func (a *App) workMateCustomerRole() (auth.Role, error) {
 		return auth.Role{}, err
 	}
 	for _, role := range roles {
-		if role.Name.Valid && role.Name.String == name {
-			return a.core.UpdateUserRole(role.ID, auth.Role{Name: null.StringFrom(name), Permissions: permissions})
+		if role.Name.Valid && role.Name.String == workMateCustomerRoleName {
+			return a.core.UpdateUserRole(role.ID, auth.Role{Name: null.StringFrom(workMateCustomerRoleName), Permissions: permissions})
 		}
 	}
-	return a.core.CreateRole(auth.Role{Name: null.StringFrom(name), Permissions: permissions})
+	return a.core.CreateRole(auth.Role{Name: null.StringFrom(workMateCustomerRoleName), Permissions: permissions})
+}
+
+func isWorkMateCustomer(user auth.User) bool {
+	return user.UserRole.Name == workMateCustomerRoleName
 }
 
 func (a *App) workMateWorkspaceListRole(assertion workMateAssertion) (auth.ListRole, error) {

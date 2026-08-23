@@ -166,6 +166,12 @@ func (a *App) TwofaPage(c echo.Context) error {
 
 // Logout logs a user out.
 func (a *App) Logout(c echo.Context) error {
+	if isWorkMateCustomer(auth.GetUser(c)) {
+		// WorkMate owns the customer session. Listmonk must never turn a
+		// customer click into a separate logout boundary.
+		return c.JSON(http.StatusOK, okResp{true})
+	}
+
 	// Delete the session from the DB and cookie.
 	sess := c.Get(auth.SessionKey).(*simplesessions.Session)
 	_ = sess.Destroy()

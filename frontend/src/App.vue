@@ -20,7 +20,7 @@
           </b-tooltip>
         </b-navbar-item>
 
-        <b-navbar-dropdown class="user" tag="div" right>
+        <b-navbar-dropdown v-if="!isWorkMateCustomer" class="user" tag="div" right>
           <template v-if="profile.username" #label>
             <span class="user-avatar">
               <img v-if="profile.avatar" :src="profile.avatar" alt="" />
@@ -212,6 +212,10 @@ export default Vue.extend({
 
     isMobile() {
       return this.windowWidth <= 768;
+    },
+
+    isWorkMateCustomer() {
+      return this.profile.userRole && this.profile.userRole.name === 'WorkMate Customer';
     },
   },
 
