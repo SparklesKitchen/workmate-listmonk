@@ -44,7 +44,7 @@ export default {
 
         const script = document.createElement('script');
         script.id = 'email-builder-script';
-        script.src = '/admin/static/email-builder/email-builder.umd.js';
+        script.src = `${import.meta.env.BASE_URL}static/email-builder/email-builder.umd.js`;
         script.onload = () => {
           resolve();
         };
