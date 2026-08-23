@@ -6,7 +6,9 @@ COPY frontend/package.json frontend/yarn.lock ./frontend/
 WORKDIR /src/frontend
 RUN corepack enable && yarn install --frozen-lockfile
 COPY frontend/ ./
-RUN yarn build
+# The owner console is mounted below WorkMate SaaS Admin. Relative assets keep
+# the compiled native app inside that authenticated mount instead of `/admin`.
+RUN LISTMONK_ADMIN_BASE_PATH=./ yarn build
 
 FROM golang:1.26-alpine AS builder
 
