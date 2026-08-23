@@ -155,6 +155,13 @@ func (a *App) workMateWorkspaceListRole(assertion workMateAssertion) (auth.ListR
 	}
 	for _, existing := range roles {
 		if existing.Name.Valid && existing.Name.String == name {
+			role.Lists = existing.Lists
+			for _, list := range role.Lists {
+				if list.ID == assertion.ListID {
+					return a.core.UpdateListRole(existing.ID, role)
+				}
+			}
+			role.Lists = append(role.Lists, auth.ListPermission{ID: assertion.ListID, Permissions: pq.StringArray{auth.PermListGet, auth.PermListManage}})
 			return a.core.UpdateListRole(existing.ID, role)
 		}
 	}

@@ -8,6 +8,7 @@ import (
 	"github.com/knadh/listmonk/internal/auth"
 	"github.com/knadh/listmonk/models"
 	"github.com/labstack/echo/v4"
+	"github.com/lib/pq"
 )
 
 // GetLists retrieves lists with additional metadata like subscriber counts.
@@ -93,6 +94,12 @@ func (a *App) GetList(c echo.Context) error {
 
 // CreateList handles list creation.
 func (a *App) CreateList(c echo.Context) error {
+	user := auth.GetUser(c)
+	if !user.HasPerm(auth.PermListManageAll) {
+		if user.ListRoleID == nil || !user.ListRoleName.Valid || !strings.HasPrefix(user.ListRoleName.String, "wm-lr-") || len(user.ManageListIDs) == 0 {
+			return auth.ErrPermDenied
+		}
+	}
 	l := models.List{}
 	if err := c.Bind(&l); err != nil {
 		return err
@@ -106,6 +113,22 @@ func (a *App) CreateList(c echo.Context) error {
 	out, err := a.core.CreateList(l)
 	if err != nil {
 		return err
+	}
+	if user.ListRoleID != nil && user.ListRoleName.Valid && strings.HasPrefix(user.ListRoleName.String, "wm-lr-") {
+		roles, err := a.core.GetListRoles()
+		if err != nil {
+			return err
+		}
+		for _, role := range roles {
+			if role.ID != *user.ListRoleID {
+				continue
+			}
+			role.Lists = append(role.Lists, auth.ListPermission{ID: out.ID, Permissions: pq.StringArray{auth.PermListGet, auth.PermListManage}})
+			if _, err := a.core.UpdateListRole(role.ID, role); err != nil {
+				return err
+			}
+			break
+		}
 	}
 
 	return c.JSON(http.StatusOK, okResp{out})
