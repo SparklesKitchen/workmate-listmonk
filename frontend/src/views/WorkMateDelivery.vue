@@ -154,7 +154,12 @@ export default {
       this.saving = true;
       try {
         const response = await this.$api.updateWorkMateDelivery(this.form);
-        this.delivery = { ...this.delivery, configured: true, verified: false, provider: this.form.provider };
+        this.delivery = {
+          ...this.delivery,
+          configured: true,
+          verified: false,
+          provider: this.form.provider,
+        };
         this.form.password = '';
         await this.$root.awaitRestart(response);
       } finally {
