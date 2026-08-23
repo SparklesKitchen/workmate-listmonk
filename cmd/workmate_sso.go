@@ -44,8 +44,9 @@ func (a *App) WorkMateAdminSSO(c echo.Context) error {
 
 // WorkMateCustomerSSO creates a native, passwordless Listmonk user scoped to
 // one WorkMate workspace and starts its normal Listmonk session. Every
-// workspace gets a distinct native account and list role: a session can never
-// widen itself by switching an active WorkMate workspace.
+// workspace gets a distinct list role; individual users get separate native
+// accounts under that shared workspace role. A session can never widen itself
+// by switching an active WorkMate workspace.
 func (a *App) WorkMateCustomerSSO(c echo.Context) error {
 	secret := strings.TrimSpace(os.Getenv("WORKMATE_CUSTOMER_SSO_SECRET"))
 	if secret == "" {
@@ -127,6 +128,10 @@ func workMateScopedID(prefix, tenant, workspace, subject string) string {
 	return fmt.Sprintf("%s%x", prefix, sum[:16])
 }
 
+func workMateWorkspaceRoleID(tenant, workspace string) string {
+	return workMateScopedID("wm-lr-", tenant, workspace, "")
+}
+
 func (a *App) workMateCustomerRole() (auth.Role, error) {
 	permissions := pq.StringArray{
 		auth.PermSubscribersGet, auth.PermSubscribersGetAll, auth.PermSubscribersManage, auth.PermSubscribersImport,
@@ -152,7 +157,10 @@ func isWorkMateCustomer(user auth.User) bool {
 }
 
 func (a *App) workMateWorkspaceListRole(assertion workMateAssertion) (auth.ListRole, error) {
-	name := workMateScopedID("wm-lr-", assertion.Tenant, assertion.Workspace, assertion.Subject)
+	// A list role is a workspace boundary, not a person boundary. This lets
+	// every member of the same WorkMate workspace work with the same lists and
+	// delivery identity while keeping another workspace completely separate.
+	name := workMateWorkspaceRoleID(assertion.Tenant, assertion.Workspace)
 	role := auth.ListRole{Name: null.StringFrom(name), Lists: []auth.ListPermission{{ID: assertion.ListID, Permissions: pq.StringArray{auth.PermListGet, auth.PermListManage}}}}
 	roles, err := a.core.GetListRoles()
 	if err != nil {
