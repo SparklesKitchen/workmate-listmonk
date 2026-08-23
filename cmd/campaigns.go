@@ -260,6 +260,9 @@ func (a *App) CreateCampaign(c echo.Context) error {
 	// Filter lists against the current user's permitted lists.
 	user := auth.GetUser(c)
 	o.ListIDs = user.FilterListsByPerm(auth.PermTypeGet|auth.PermTypeManage, o.ListIDs)
+	if err := a.applyWorkMateCampaignDelivery(user, &o); err != nil {
+		return err
+	}
 
 	// If the campaign's 'opt-in', prepare a default message.
 	switch o.Type {
@@ -333,6 +336,9 @@ func (a *App) UpdateCampaign(c echo.Context) error {
 	// Filter lists against the current user's permitted lists.
 	user := auth.GetUser(c)
 	o.ListIDs = user.FilterListsByPerm(auth.PermTypeGet|auth.PermTypeManage, o.ListIDs)
+	if err := a.applyWorkMateCampaignDelivery(user, &o); err != nil {
+		return err
+	}
 
 	if c, err := a.validateCampaignFields(o); err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, err.Error())
@@ -363,6 +369,19 @@ func (a *App) UpdateCampaignStatus(c echo.Context) error {
 	}{}
 	if err := c.Bind(&req); err != nil {
 		return err
+	}
+	if req.Status == models.CampaignStatusRunning || req.Status == models.CampaignStatusScheduled {
+		campaign, err := a.core.GetCampaign(id, "", "")
+		if err != nil {
+			return err
+		}
+		user := auth.GetUser(c)
+		if isWorkMateCustomer(user) {
+			expected := workMateDeliverySMTPName(user)
+			if campaign.Messenger != expected {
+				return echo.NewHTTPError(http.StatusBadRequest, "set up Delivery for this workspace before sending a campaign")
+			}
+		}
 	}
 
 	// Update the campaign status in the DB.
@@ -531,6 +550,10 @@ func (a *App) TestCampaign(c echo.Context) error {
 	if err := c.Bind(&req); err != nil {
 		return err
 	}
+	user := auth.GetUser(c)
+	if err := a.applyWorkMateCampaignDelivery(user, &req); err != nil {
+		return err
+	}
 
 	// Validate.
 	if c, err := a.validateCampaignFields(req); err != nil {
@@ -554,7 +577,6 @@ func (a *App) TestCampaign(c echo.Context) error {
 	}
 
 	// Exclude subscribers from lists that the user doesn't have access to.
-	user := auth.GetUser(c)
 	validSubs := subs[:0]
 	for _, s := range subs {
 		if err := a.hasSubPerm(user, []int{s.ID}); err == nil {

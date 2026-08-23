@@ -158,6 +158,11 @@ func initHTTPHandlers(e *echo.Echo, a *App) {
 		g.DELETE("/api/lists", a.DeleteLists)
 		g.DELETE("/api/lists/:id", hasID(a.DeleteList))
 
+		// WorkMate customer delivery is a constrained native extension. It is
+		// intentionally separate from global Listmonk Settings.
+		g.GET("/api/workmate/delivery", a.GetWorkMateDelivery)
+		g.PUT("/api/workmate/delivery", a.UpdateWorkMateDelivery)
+
 		g.GET("/api/campaigns", pm(a.GetCampaigns, "campaigns:get_all", "campaigns:get"))
 		g.GET("/api/campaigns/running/stats", pm(a.GetRunningCampaignStats, "campaigns:get_all", "campaigns:get"))
 		g.GET("/api/campaigns/:id", pm(hasID(a.GetCampaign), "campaigns:get_all", "campaigns:get"))

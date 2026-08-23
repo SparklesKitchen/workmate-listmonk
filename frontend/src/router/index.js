@@ -90,6 +90,12 @@ const routes = [
     component: () => import('../views/CampaignAnalytics.vue'),
   },
   {
+    path: '/delivery',
+    name: 'delivery',
+    meta: { title: 'Delivery', group: 'delivery' },
+    component: () => import('../views/WorkMateDelivery.vue'),
+  },
+  {
     path: '/campaigns/:id',
     name: 'campaign',
     meta: { title: 'globals.terms.campaign', group: 'campaigns' },

@@ -42,6 +42,9 @@
         :label="$t('globals.terms.analytics')" />
     </b-menu-item><!-- campaigns -->
 
+    <b-menu-item v-if="$isWorkMateCustomer" :to="{ name: 'delivery' }" tag="router-link"
+      :active="activeItem.delivery" data-cy="delivery" icon="email-cog-outline" label="Delivery" />
+
     <b-menu-item v-if="$can('users:*', 'roles:*')" :expanded="activeGroup.users" :active="activeGroup.users"
       data-cy="users" @update:active="(state) => toggleGroup('users', state)" icon="account-multiple"
       :label="$t('globals.terms.users')">

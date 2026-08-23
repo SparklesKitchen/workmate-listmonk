@@ -158,6 +158,15 @@ export const deleteLists = (params) => http.delete(
   { params, loading: models.lists },
 );
 
+// WorkMate customer delivery. This is deliberately not the global Listmonk
+// Settings API: the server returns and mutates only the active workspace record.
+export const getWorkMateDelivery = () => http.get('/api/workmate/delivery');
+
+export const updateWorkMateDelivery = (data) => http.put(
+  '/api/workmate/delivery',
+  data,
+);
+
 // Subscribers.
 export const getSubscribers = async (params) => http.get(
   '/api/subscribers',
