@@ -21,7 +21,10 @@ const (
 type Template struct {
 	Base
 
-	Name string `db:"name" json:"name"`
+	// ListID is the workspace audience that owns this template. A nil value is
+	// reserved for pre-existing platform templates visible only to super admins.
+	ListID null.Int `db:"list_id" json:"list_id,omitempty"`
+	Name   string   `db:"name" json:"name"`
 	// Subject is only for type=tx.
 	Subject    string      `db:"subject" json:"subject"`
 	Type       string      `db:"type" json:"type"`

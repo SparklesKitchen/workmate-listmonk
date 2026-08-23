@@ -77,6 +77,7 @@ DROP INDEX IF EXISTS idx_sub_lists_status; CREATE INDEX idx_sub_lists_status ON 
 DROP TABLE IF EXISTS templates CASCADE;
 CREATE TABLE templates (
     id              SERIAL PRIMARY KEY,
+    list_id         INTEGER REFERENCES lists(id) ON DELETE CASCADE,
     name            TEXT NOT NULL,
     type            template_type NOT NULL DEFAULT 'campaign',
     subject         TEXT NOT NULL,

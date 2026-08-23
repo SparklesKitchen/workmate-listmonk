@@ -127,19 +127,21 @@ func workMateScopedID(prefix, tenant, workspace, subject string) string {
 
 func (a *App) workMateCustomerRole() (auth.Role, error) {
 	const name = "WorkMate Customer"
+	permissions := pq.StringArray{
+		auth.PermSubscribersGet, auth.PermSubscribersGetAll, auth.PermSubscribersManage, auth.PermSubscribersImport,
+		auth.PermCampaignsGet, auth.PermCampaignsManage, auth.PermCampaignsGetAnalytics, auth.PermCampaignsSend,
+		auth.PermTemplatesGet, auth.PermTemplatesManage,
+	}
 	roles, err := a.core.GetRoles()
 	if err != nil {
 		return auth.Role{}, err
 	}
 	for _, role := range roles {
 		if role.Name.Valid && role.Name.String == name {
-			return role, nil
+			return a.core.UpdateUserRole(role.ID, auth.Role{Name: null.StringFrom(name), Permissions: permissions})
 		}
 	}
-	return a.core.CreateRole(auth.Role{Name: null.StringFrom(name), Permissions: pq.StringArray{
-		auth.PermSubscribersGet, auth.PermSubscribersGetAll, auth.PermSubscribersManage, auth.PermSubscribersImport,
-		auth.PermCampaignsGet, auth.PermCampaignsManage, auth.PermCampaignsGetAnalytics, auth.PermCampaignsSend,
-	}})
+	return a.core.CreateRole(auth.Role{Name: null.StringFrom(name), Permissions: permissions})
 }
 
 func (a *App) workMateWorkspaceListRole(assertion workMateAssertion) (auth.ListRole, error) {
