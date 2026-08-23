@@ -8,13 +8,22 @@
     </header>
 
     <b-notification type="is-info" :closable="false">
-      Choose either a Brevo API key or a generic SMTP connection. The sender address must already be verified by that provider.
+      Save a provider, then send a verification email. Campaign tests, schedules, and sends stay blocked until the connection and sender verify.
+    </b-notification>
+
+    <b-notification v-if="delivery.configured && !delivery.verified" type="is-warning" :closable="false">
+      This delivery connection is saved but unverified. It cannot send campaigns yet.
+    </b-notification>
+
+    <b-notification v-if="delivery.verified" type="is-success" :closable="false">
+      This workspace delivery connection and sender are verified.
     </b-notification>
 
     <form class="box" @submit.prevent="save">
       <b-field label="Delivery provider">
         <b-select v-model="form.provider" expanded>
-          <option value="brevo">Brevo API</option>
+          <option value="brevo_api">Brevo API</option>
+          <option value="brevo_smtp">Brevo SMTP relay</option>
           <option value="smtp">Generic SMTP</option>
         </b-select>
       </b-field>
@@ -23,7 +32,7 @@
         <b-input v-model.trim="form.fromEmail" type="email" required />
       </b-field>
 
-      <b-field v-if="form.provider === 'brevo'" label="Sender name">
+      <b-field v-if="form.provider === 'brevo_api'" label="Sender name">
         <b-input v-model.trim="form.senderName" required />
       </b-field>
 
@@ -64,7 +73,16 @@
         </div>
       </template>
 
-      <b-field v-if="form.provider === 'smtp'" label="SMTP username">
+      <template v-if="form.provider === 'brevo_smtp'">
+        <b-field label="Brevo SMTP relay">
+          <b-input value="smtp-relay.brevo.com" disabled />
+        </b-field>
+        <b-field label="SMTP port">
+          <b-input v-model.number="form.port" type="number" min="1" max="65535" required />
+        </b-field>
+      </template>
+
+      <b-field v-if="form.provider !== 'brevo_api'" label="SMTP username">
         <b-input v-model.trim="form.username" required />
       </b-field>
       <b-field :label="credentialLabel">
@@ -73,6 +91,17 @@
 
       <b-button native-type="submit" type="is-primary" :loading="saving">
         Save delivery connection
+      </b-button>
+    </form>
+
+    <form v-if="delivery.configured && !delivery.verified" class="box verify-box" @submit.prevent="verify">
+      <h2 class="title is-5">Verify delivery</h2>
+      <p class="mb-4">Send a verification email before using this connection for campaign tests, schedules, or sends.</p>
+      <b-field label="Test recipient email">
+        <b-input v-model.trim="testEmail" type="email" required />
+      </b-field>
+      <b-button native-type="submit" type="is-primary" :loading="verifying">
+        Send verification email
       </b-button>
     </form>
   </section>
@@ -85,9 +114,11 @@ export default {
   data() {
     return {
       saving: false,
-      delivery: { configured: false },
+      verifying: false,
+      testEmail: '',
+      delivery: { configured: false, verified: false },
       form: {
-        provider: 'brevo',
+        provider: 'brevo_api',
         fromEmail: '',
         host: '',
         port: 587,
@@ -123,17 +154,30 @@ export default {
       this.saving = true;
       try {
         const response = await this.$api.updateWorkMateDelivery(this.form);
-        this.delivery = { ...this.delivery, configured: true };
+        this.delivery = { ...this.delivery, configured: true, verified: false, provider: this.form.provider };
         this.form.password = '';
         await this.$root.awaitRestart(response);
       } finally {
         this.saving = false;
       }
     },
+    async verify() {
+      this.verifying = true;
+      try {
+        const response = await this.$api.verifyWorkMateDelivery({
+          provider: this.form.provider,
+          test_email: this.testEmail,
+        });
+        this.delivery = { ...this.delivery, verified: true };
+        await this.$root.awaitRestart(response);
+      } finally {
+        this.verifying = false;
+      }
+    },
   },
   computed: {
     credentialLabel() {
-      const kind = this.form.provider === 'brevo' ? 'Brevo API key' : 'SMTP password';
+      const kind = this.form.provider === 'brevo_api' ? 'Brevo API key' : 'SMTP password or key';
       return this.delivery.configured ? `New ${kind} (leave blank to keep it)` : kind;
     },
   },

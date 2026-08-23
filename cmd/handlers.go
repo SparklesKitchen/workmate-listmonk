@@ -162,6 +162,7 @@ func initHTTPHandlers(e *echo.Echo, a *App) {
 		// intentionally separate from global Listmonk Settings.
 		g.GET("/api/workmate/delivery", a.GetWorkMateDelivery)
 		g.PUT("/api/workmate/delivery", a.UpdateWorkMateDelivery)
+		g.POST("/api/workmate/delivery/verify", a.VerifyWorkMateDelivery)
 
 		g.GET("/api/campaigns", pm(a.GetCampaigns, "campaigns:get_all", "campaigns:get"))
 		g.GET("/api/campaigns/running/stats", pm(a.GetRunningCampaignStats, "campaigns:get_all", "campaigns:get"))

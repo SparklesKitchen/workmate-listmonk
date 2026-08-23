@@ -1,9 +1,8 @@
 package main
 
 import (
-	"crypto/hmac"
+	"bytes"
 	"crypto/sha256"
-	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -13,6 +12,7 @@ import (
 	"time"
 
 	"github.com/knadh/listmonk/internal/auth"
+	"github.com/knadh/listmonk/internal/workmate"
 	"github.com/knadh/listmonk/models"
 	"github.com/labstack/echo/v4"
 	"github.com/lib/pq"
@@ -20,6 +20,11 @@ import (
 )
 
 const workMateCustomerRoleName = "WorkMate Customer"
+
+// workMateRegistryHTTPClient is deliberately small and has a hard timeout.
+// A customer list must never make a native Listmonk request wait indefinitely
+// for the WorkMate ownership registry.
+var workMateRegistryHTTPClient = &http.Client{Timeout: 5 * time.Second}
 
 // Listmonk is one shared WorkMate runtime. Serialise first-workspace list
 // creation inside that runtime so parallel launches cannot create two audience
@@ -118,7 +123,7 @@ func (a *App) WorkMateCustomerSSO(c echo.Context) error {
 	if err != nil {
 		return err
 	}
-	if err := a.auth.SaveSession(user, "", c); err != nil {
+	if err := a.auth.SaveWorkMateSession(user, auth.WorkMateScope{Tenant: assertion.Tenant, Workspace: assertion.Workspace}, c); err != nil {
 		return err
 	}
 	c.Response().Header().Set("Cache-Control", "no-store")
@@ -155,26 +160,65 @@ type workMateAssertion struct {
 	Expires   int64  `json:"exp"`
 }
 
-func readWorkMateAssertion(value, secret string, now time.Time) (workMateAssertion, bool) {
-	if secret == "" {
-		return workMateAssertion{}, false
+func validWorkMateWorkspaceRole(user auth.User) bool {
+	return isWorkMateCustomer(user) && user.ListRoleID != nil && user.ListRoleName.Valid && workmate.IsWorkspaceRole(user.ListRoleName.String)
+}
+
+// persistWorkMateListOwnership records a customer-created native list in the
+// WorkMate-owned Managed Supabase registry. The callback scope comes only from
+// the verified server-side session established at WorkMate SSO, never from a
+// list form or browser query parameter.
+func (a *App) persistWorkMateListOwnership(c echo.Context, user auth.User, list models.List) error {
+	if !validWorkMateWorkspaceRole(user) {
+		return auth.ErrPermDenied
 	}
-	parts := strings.Split(value, ".")
-	if len(parts) != 2 || parts[0] == "" || parts[1] == "" {
-		return workMateAssertion{}, false
+	scope, ok := auth.WorkMateScopeFromContext(c)
+	if !ok {
+		return echo.NewHTTPError(http.StatusForbidden, "missing WorkMate workspace scope")
 	}
-	expected := hmac.New(sha256.New, []byte(secret))
-	expected.Write([]byte(parts[0]))
-	signature, err := base64.RawURLEncoding.DecodeString(parts[1])
-	if err != nil || !hmac.Equal(signature, expected.Sum(nil)) {
-		return workMateAssertion{}, false
+	endpoint := strings.TrimSpace(os.Getenv("WORKMATE_LIST_RECEIPT_URL"))
+	secret := strings.TrimSpace(os.Getenv("WORKMATE_ADMIN_SSO_SECRET"))
+	if endpoint == "" || secret == "" {
+		// Fail closed. A customer-created list without a durable WorkMate
+		// ownership receipt is not allowed into a workspace role.
+		return echo.NewHTTPError(http.StatusServiceUnavailable, "WorkMate list ownership registry is unavailable")
 	}
-	payload, err := base64.RawURLEncoding.DecodeString(parts[0])
+	now := time.Now()
+	handoff, err := writeWorkMateAssertion(workMateAssertion{
+		Issuer: "workmate-listmonk", Audience: "workmate-os", Kind: "list-created",
+		Tenant: scope.Tenant, Workspace: scope.Workspace, ListID: list.ID,
+		IssuedAt: now.Unix(), Expires: now.Add(60 * time.Second).Unix(),
+	}, secret)
 	if err != nil {
-		return workMateAssertion{}, false
+		return err
 	}
+	payload, err := json.Marshal(map[string]string{"handoff": handoff})
+	if err != nil {
+		return err
+	}
+	req, err := http.NewRequest(http.MethodPost, endpoint, bytes.NewReader(payload))
+	if err != nil {
+		return echo.NewHTTPError(http.StatusServiceUnavailable, "WorkMate list ownership registry is unavailable")
+	}
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := workMateRegistryHTTPClient.Do(req)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusServiceUnavailable, "WorkMate list ownership registry is unavailable")
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode < http.StatusOK || resp.StatusCode >= http.StatusMultipleChoices {
+		return echo.NewHTTPError(http.StatusServiceUnavailable, "WorkMate list ownership registry rejected the list")
+	}
+	return nil
+}
+
+func writeWorkMateAssertion(assertion workMateAssertion, secret string) (string, error) {
+	return workmate.EncodeHMACJSON(assertion, secret)
+}
+
+func readWorkMateAssertion(value, secret string, now time.Time) (workMateAssertion, bool) {
 	var assertion workMateAssertion
-	if err := json.Unmarshal(payload, &assertion); err != nil {
+	if !workmate.DecodeHMACJSON(value, secret, &assertion) {
 		return workMateAssertion{}, false
 	}
 	current := now.Unix()
@@ -196,11 +240,10 @@ func workMateWorkspaceRoleID(tenant, workspace string) string {
 
 func (a *App) workMateCustomerRole() (auth.Role, error) {
 	permissions := pq.StringArray{
-		auth.PermSubscribersGet, auth.PermSubscribersGetAll, auth.PermSubscribersManage, auth.PermSubscribersImport,
+		auth.PermSubscribersGet, auth.PermSubscribersManage, auth.PermSubscribersImport,
 		auth.PermCampaignsGet, auth.PermCampaignsManage, auth.PermCampaignsGetAnalytics, auth.PermCampaignsSend,
 		auth.PermTemplatesGet, auth.PermTemplatesManage,
 		auth.PermBouncesGet,
-		auth.PermMediaGet, auth.PermMediaManage,
 	}
 	roles, err := a.core.GetRoles()
 	if err != nil {

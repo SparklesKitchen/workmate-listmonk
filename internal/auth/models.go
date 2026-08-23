@@ -21,9 +21,18 @@ const (
 
 const (
 	// UserHTTPCtxKey is the key on which the User profile is set on echo handlers.
-	UserHTTPCtxKey = "auth_user"
-	SessionKey     = "auth_session"
+	UserHTTPCtxKey          = "auth_user"
+	SessionKey              = "auth_session"
+	WorkMateScopeHTTPCtxKey = "auth_workmate_scope"
+	workMateScopeSessionKey = "workmate_scope"
 )
+
+// WorkMateScope is written only by verified WorkMate SSO and retained in the
+// server-side session for authenticated native callbacks.
+type WorkMateScope struct {
+	Tenant    string `json:"tenant"`
+	Workspace string `json:"workspace"`
+}
 
 const (
 	// SuperAdminRoleID is the database ID of the primordial super admin role.

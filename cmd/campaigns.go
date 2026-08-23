@@ -46,6 +46,37 @@ type campContentReq struct {
 	To   string `json:"to"`
 }
 
+// enforceWorkMateCampaignAssets prevents a customer from attaching a guessed
+// global template or media ID to an otherwise scoped campaign. Native Listmonk
+// stores both objects globally, but the maintained fork records their owner
+// list and templateScope limits every lookup to the active workspace.
+func (a *App) enforceWorkMateCampaignAssets(c echo.Context, user auth.User, campaign *campReq) error {
+	if !isWorkMateCustomer(user) {
+		return nil
+	}
+	scope := templateScope(c)
+	if scope < 1 {
+		return auth.ErrPermDenied
+	}
+	for _, templateID := range []int{int(campaign.TemplateID.Int), int(campaign.ArchiveTemplateID.Int)} {
+		if templateID < 1 {
+			continue
+		}
+		if _, err := a.core.GetTemplate(scope, templateID, true); err != nil {
+			return auth.ErrPermDenied
+		}
+	}
+	for _, mediaID := range campaign.MediaIDs {
+		if mediaID < 1 {
+			continue
+		}
+		if _, err := a.core.GetMedia(scope, mediaID, "", "", a.media); err != nil {
+			return auth.ErrPermDenied
+		}
+	}
+	return nil
+}
+
 var (
 	reFromAddress = regexp.MustCompile(`((.+?)\s)?<(.+?)@(.+?)>`)
 	reSlug        = regexp.MustCompile(`[^\p{L}\p{M}\p{N}]`)
@@ -260,6 +291,9 @@ func (a *App) CreateCampaign(c echo.Context) error {
 	// Filter lists against the current user's permitted lists.
 	user := auth.GetUser(c)
 	o.ListIDs = user.FilterListsByPerm(auth.PermTypeGet|auth.PermTypeManage, o.ListIDs)
+	if err := a.enforceWorkMateCampaignAssets(c, user, &o); err != nil {
+		return err
+	}
 	if err := a.applyWorkMateCampaignDelivery(user, &o); err != nil {
 		return err
 	}
@@ -336,6 +370,9 @@ func (a *App) UpdateCampaign(c echo.Context) error {
 	// Filter lists against the current user's permitted lists.
 	user := auth.GetUser(c)
 	o.ListIDs = user.FilterListsByPerm(auth.PermTypeGet|auth.PermTypeManage, o.ListIDs)
+	if err := a.enforceWorkMateCampaignAssets(c, user, &o); err != nil {
+		return err
+	}
 	if err := a.applyWorkMateCampaignDelivery(user, &o); err != nil {
 		return err
 	}
@@ -377,8 +414,11 @@ func (a *App) UpdateCampaignStatus(c echo.Context) error {
 		}
 		user := auth.GetUser(c)
 		if isWorkMateCustomer(user) {
-			expected := workMateDeliverySMTPName(user)
-			if campaign.Messenger != expected {
+			verified, err := a.workMateCampaignDeliveryVerified(user, &campaign)
+			if err != nil {
+				return err
+			}
+			if !verified {
 				return echo.NewHTTPError(http.StatusBadRequest, "set up Delivery for this workspace before sending a campaign")
 			}
 		}
@@ -508,6 +548,18 @@ func (a *App) GetRunningCampaignStats(c echo.Context) error {
 	if err != nil {
 		return err
 	}
+	if user := auth.GetUser(c); isWorkMateCustomer(user) {
+		// Stock Listmonk returns every running campaign. Keep that global query
+		// entirely server-side and return only campaigns tied to this workspace's
+		// list role so native polling cannot infer other customers' activity.
+		scoped := out[:0]
+		for _, campaign := range out {
+			if err := a.checkCampaignPerm(auth.PermTypeGet, campaign.ID, c); err == nil {
+				scoped = append(scoped, campaign)
+			}
+		}
+		out = scoped
+	}
 
 	if len(out) == 0 {
 		return c.JSON(http.StatusOK, okResp{[]struct{}{}})
@@ -551,6 +603,9 @@ func (a *App) TestCampaign(c echo.Context) error {
 		return err
 	}
 	user := auth.GetUser(c)
+	if err := a.enforceWorkMateCampaignAssets(c, user, &req); err != nil {
+		return err
+	}
 	if err := a.applyWorkMateCampaignDelivery(user, &req); err != nil {
 		return err
 	}
@@ -592,6 +647,11 @@ func (a *App) TestCampaign(c echo.Context) error {
 
 	// Get the campaign from the DB for previewing.
 	tplID, _ := strconv.Atoi(c.FormValue("template_id"))
+	if isWorkMateCustomer(user) && tplID > 0 {
+		if _, err := a.core.GetTemplate(templateScope(c), tplID, true); err != nil {
+			return auth.ErrPermDenied
+		}
+	}
 	camp, err := a.core.GetCampaignForPreview(id, tplID)
 	if err != nil {
 		return err

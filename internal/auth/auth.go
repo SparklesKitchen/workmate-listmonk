@@ -7,6 +7,7 @@ import (
 	"database/sql"
 	"encoding/base64"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log"
@@ -330,6 +331,9 @@ func (o *Auth) Middleware(next echo.HandlerFunc) echo.HandlerFunc {
 		// Set the user details on the handler context.
 		c.Set(UserHTTPCtxKey, user)
 		c.Set(SessionKey, sess)
+		if scope, ok := workMateScopeFromSession(sess); ok {
+			c.Set(WorkMateScopeHTTPCtxKey, scope)
+		}
 		return next(c)
 	}
 }
@@ -370,18 +374,62 @@ func (o *Auth) Perm(next echo.HandlerFunc, perms ...string) echo.HandlerFunc {
 
 // SaveSession creates and sets a session (post successful login/auth).
 func (o *Auth) SaveSession(u User, oidcToken string, c echo.Context) error {
+	return o.saveSession(u, oidcToken, nil, c)
+}
+
+// SaveWorkMateSession starts a normal passwordless native session and retains
+// the verified WorkMate scope only in the server-side session store.
+func (o *Auth) SaveWorkMateSession(u User, scope WorkMateScope, c echo.Context) error {
+	if scope.Tenant == "" || scope.Workspace == "" {
+		return echo.NewHTTPError(http.StatusForbidden, "invalid WorkMate scope")
+	}
+	scopeJSON, err := json.Marshal(scope)
+	if err != nil {
+		return err
+	}
+	return o.saveSession(u, "", map[string]any{workMateScopeSessionKey: string(scopeJSON)}, c)
+}
+
+func (o *Auth) saveSession(u User, oidcToken string, additional map[string]any, c echo.Context) error {
 	sess, err := o.sess.NewSession(c, c)
 	if err != nil {
 		o.log.Printf("error creating login session: %v", err)
 		return echo.NewHTTPError(http.StatusInternalServerError, "error creating session")
 	}
 
-	if err := sess.SetMulti(map[string]any{"user_id": u.ID, "oidc_token": oidcToken}); err != nil {
+	values := map[string]any{"user_id": u.ID, "oidc_token": oidcToken}
+	for key, value := range additional {
+		values[key] = value
+	}
+	if err := sess.SetMulti(values); err != nil {
 		o.log.Printf("error setting login session: %v", err)
 		return echo.NewHTTPError(http.StatusInternalServerError, "error creating session")
 	}
 
 	return nil
+}
+
+// WorkMateScopeFromContext reads the scope loaded by auth middleware from the
+// server-side session. Request query and body values never participate.
+func WorkMateScopeFromContext(c echo.Context) (WorkMateScope, bool) {
+	scope, ok := c.Get(WorkMateScopeHTTPCtxKey).(WorkMateScope)
+	return scope, ok && scope.Tenant != "" && scope.Workspace != ""
+}
+
+func workMateScopeFromSession(sess *simplesessions.Session) (WorkMateScope, bool) {
+	raw, err := sess.Get(workMateScopeSessionKey)
+	if err != nil {
+		return WorkMateScope{}, false
+	}
+	value, ok := raw.(string)
+	if !ok || value == "" {
+		return WorkMateScope{}, false
+	}
+	var scope WorkMateScope
+	if err := json.Unmarshal([]byte(value), &scope); err != nil || scope.Tenant == "" || scope.Workspace == "" {
+		return WorkMateScope{}, false
+	}
+	return scope, true
 }
 
 // GetSessionID returns the current session ID from the echo context.

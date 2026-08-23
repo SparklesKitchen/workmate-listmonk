@@ -96,7 +96,7 @@ func (a *App) GetList(c echo.Context) error {
 func (a *App) CreateList(c echo.Context) error {
 	user := auth.GetUser(c)
 	if !user.HasPerm(auth.PermListManageAll) {
-		if user.ListRoleID == nil || !user.ListRoleName.Valid || !strings.HasPrefix(user.ListRoleName.String, "wm-lr-") || len(user.ManageListIDs) == 0 {
+		if !validWorkMateWorkspaceRole(user) || len(user.ManageListIDs) == 0 {
 			return auth.ErrPermDenied
 		}
 	}
@@ -114,24 +114,82 @@ func (a *App) CreateList(c echo.Context) error {
 	if err != nil {
 		return err
 	}
-	if user.ListRoleID != nil && user.ListRoleName.Valid && strings.HasPrefix(user.ListRoleName.String, "wm-lr-") {
-		roles, err := a.core.GetListRoles()
-		if err != nil {
+	if validWorkMateWorkspaceRole(user) {
+		if err := a.addWorkMateListRolePermission(user, out.ID); err != nil {
+			_ = a.core.DeleteLists([]int{out.ID}, "", true, nil)
 			return err
 		}
-		for _, role := range roles {
-			if role.ID != *user.ListRoleID {
-				continue
-			}
-			role.Lists = append(role.Lists, auth.ListPermission{ID: out.ID, Permissions: pq.StringArray{auth.PermListGet, auth.PermListManage}})
-			if _, err := a.core.UpdateListRole(role.ID, role); err != nil {
-				return err
-			}
-			break
+		// The native role is deliberately granted first, then the signed receipt
+		// proves to WorkMate OS that this list belongs to this authenticated
+		// workspace. If the receipt cannot be recorded, revoke and remove the
+		// just-created list so it never survives outside the durable registry.
+		if err := a.persistWorkMateListOwnership(c, user, out); err != nil {
+			_ = a.removeWorkMateListRolePermission(user, out.ID)
+			_ = a.core.DeleteLists([]int{out.ID}, "", true, nil)
+			return err
 		}
 	}
 
 	return c.JSON(http.StatusOK, okResp{out})
+}
+
+func (a *App) removeWorkMateListRolePermission(user auth.User, listID int) error {
+	if !validWorkMateWorkspaceRole(user) {
+		return auth.ErrPermDenied
+	}
+	roles, err := a.core.GetListRoles()
+	if err != nil {
+		return err
+	}
+	for _, role := range roles {
+		if role.ID != *user.ListRoleID {
+			continue
+		}
+		if !role.Name.Valid || role.Name.String != user.ListRoleName.String {
+			return auth.ErrPermDenied
+		}
+		permissions := role.Lists[:0]
+		for _, permission := range role.Lists {
+			if permission.ID != listID {
+				permissions = append(permissions, permission)
+			}
+		}
+		role.Lists = permissions
+		_, err := a.core.UpdateListRole(role.ID, role)
+		return err
+	}
+	return auth.ErrPermDenied
+}
+
+// addWorkMateListRolePermission adds a native customer-created list to exactly
+// the authenticated user's existing workspace list role. It does not accept a
+// role ID from the request, which prevents a customer from assigning a list to
+// another workspace.
+func (a *App) addWorkMateListRolePermission(user auth.User, listID int) error {
+	if !validWorkMateWorkspaceRole(user) {
+		return auth.ErrPermDenied
+	}
+	roles, err := a.core.GetListRoles()
+	if err != nil {
+		return err
+	}
+	for _, role := range roles {
+		if role.ID != *user.ListRoleID {
+			continue
+		}
+		if !role.Name.Valid || role.Name.String != user.ListRoleName.String {
+			return auth.ErrPermDenied
+		}
+		for _, permission := range role.Lists {
+			if permission.ID == listID {
+				return nil
+			}
+		}
+		role.Lists = append(role.Lists, auth.ListPermission{ID: listID, Permissions: pq.StringArray{auth.PermListGet, auth.PermListManage}})
+		_, err := a.core.UpdateListRole(role.ID, role)
+		return err
+	}
+	return auth.ErrPermDenied
 }
 
 // UpdateList handles list modification.

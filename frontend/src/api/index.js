@@ -167,6 +167,11 @@ export const updateWorkMateDelivery = (data) => http.put(
   data,
 );
 
+export const verifyWorkMateDelivery = (data) => http.post(
+  '/api/workmate/delivery/verify',
+  data,
+);
+
 // Subscribers.
 export const getSubscribers = async (params) => http.get(
   '/api/subscribers',
