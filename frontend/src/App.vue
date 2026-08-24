@@ -13,7 +13,7 @@
         <navigation v-if="isMobile" :is-mobile="isMobile" :active-item="activeItem" :active-group="activeGroup"
           @toggleGroup="toggleGroup" @doLogout="doLogout" />
 
-        <b-navbar-item v-if="isWorkMateCustomer" tag="a" href="/" class="workmate-return-agent"
+        <b-navbar-item tag="a" href="https://app.workmateos.co.uk/" class="workmate-return-agent"
           data-cy="btn-workmate-return" title="Back to WorkMate OS" aria-label="Back to WorkMate OS" />
 
         <b-navbar-item tag="a" href="#" @click.prevent="emitPageRefresh" data-cy="btn-refresh"

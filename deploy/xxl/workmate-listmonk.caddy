@@ -1,12 +1,8 @@
-
-# This snippet is imported within app.workmateos.co.uk. Caddy removes the
-# external namespace before forwarding to native Listmonk, while native
-# redirects back into that namespace.
+# Legacy namespace. Reach now lives at reach.workmateos.co.uk; the old
+# app.workmateos.co.uk/saas-admin/listmonk/* URLs redirect there and the
+# reach vhost strips the prefix before forwarding to native Listmonk.
 (workmate-listmonk) {
 	handle /saas-admin/listmonk/* {
-		uri strip_prefix /saas-admin/listmonk
-		reverse_proxy 127.0.0.1:9100 {
-			header_down Location "^/admin(.*)$" "/saas-admin/listmonk/admin$1"
-		}
+		redir https://reach.workmateos.co.uk{uri} 302
 	}
 }
