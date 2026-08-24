@@ -13,6 +13,9 @@
         <navigation v-if="isMobile" :is-mobile="isMobile" :active-item="activeItem" :active-group="activeGroup"
           @toggleGroup="toggleGroup" @doLogout="doLogout" />
 
+        <b-navbar-item v-if="isWorkMateCustomer" tag="a" href="/" class="workmate-return-agent"
+          data-cy="btn-workmate-return" title="Back to WorkMate OS" aria-label="Back to WorkMate OS" />
+
         <b-navbar-item tag="a" href="#" @click.prevent="emitPageRefresh" data-cy="btn-refresh"
           :aria-label="$t('globals.buttons.refresh')">
           <b-tooltip :label="$t('globals.buttons.refresh')" type="is-dark" position="is-bottom">
@@ -236,4 +239,19 @@ export default Vue.extend({
 <style lang="scss">
 @import "assets/style.scss";
 @import "assets/icons/fontello.css";
+
+/* Invisible click target over the banner agent circle (drawn by the
+   appearance CSS on .navbar:before) so customers can return to WorkMate OS. */
+.navbar .navbar-item.workmate-return-agent {
+  position: fixed !important;
+  right: 62px !important;
+  top: -15px !important;
+  width: 220px !important;
+  height: 220px !important;
+  border-radius: 50% !important;
+  padding: 0 !important;
+  background: transparent !important;
+  z-index: 5 !important;
+  cursor: pointer;
+}
 </style>
