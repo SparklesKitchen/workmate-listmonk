@@ -34,6 +34,7 @@
           </p>
         </template>
 
+        <template v-if="!isWorkMateCustomer">
         <hr />
         <h4>{{ $t('forms.redirectURL') }}</h4>
         <p class="is-size-7 has-text-grey">
@@ -51,6 +52,7 @@
             </b-radio>
           </li>
         </ul>
+        </template>
       </div>
       <div class="column" data-cy="form">
         <h4>{{ $t('forms.formHTML') }}</h4>
@@ -146,7 +148,11 @@ export default Vue.extend({
   },
 
   computed: {
-    ...mapState(['loading', 'lists', 'serverConfig']),
+    ...mapState(['loading', 'lists', 'serverConfig', 'profile']),
+
+    isWorkMateCustomer() {
+      return this.profile.userRole && this.profile.userRole.name === 'WorkMate Customer';
+    },
 
     publicLists() {
       if (!this.lists.results) {
