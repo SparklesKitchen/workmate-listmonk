@@ -247,8 +247,8 @@ export default Vue.extend({
    appearance CSS on .navbar:before) so customers can return to WorkMate OS. */
 .navbar .navbar-item.workmate-return-pill {
   position: fixed !important;
-  top: 24px !important;
-  right: 28px !important;
+  top: 148px !important;
+  left: 16px !important;
   z-index: 6 !important;
   display: inline-flex !important;
   align-items: center !important;
