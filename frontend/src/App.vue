@@ -246,7 +246,7 @@ export default Vue.extend({
 /* Invisible click target over the banner agent circle (drawn by the
    appearance CSS on .navbar:before) so customers can return to WorkMate OS. */
 .navbar .navbar-item.workmate-return-pill {
-  position: fixed !important;
+  position: absolute !important;
   top: 148px !important;
   left: 16px !important;
   z-index: 6 !important;
@@ -268,7 +268,7 @@ export default Vue.extend({
 }
 
 .navbar .navbar-item.workmate-return-agent {
-  position: fixed !important;
+  position: absolute !important;
   right: 62px !important;
   top: -15px !important;
   width: 220px !important;

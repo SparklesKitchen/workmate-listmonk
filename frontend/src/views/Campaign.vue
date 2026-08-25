@@ -201,7 +201,7 @@
             </b-field>
           </div>
           <div class="column has-text-right">
-            <a href="https://listmonk.app/docs/templating/#template-expressions" target="_blank"
+            <a href="/help/templates.html" target="_blank"
               rel="noopener noreferer">
               <b-icon icon="code" /> {{ $t('campaigns.templatingRef') }}</a>
             <span v-if="canEdit && form.content.contentType !== 'plain'" class="is-size-6 has-text-grey ml-6">

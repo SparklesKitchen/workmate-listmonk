@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Templates - Reach Help</title>
+<style>
+body{margin:0;background:#071225;color:#dcecff;font:16px/1.65 system-ui,sans-serif}
+.wrap{max-width:760px;margin:0 auto;padding:48px 24px 80px}
+.brand{font:700 12px/1 system-ui;letter-spacing:.24em;color:#e8f6ff}
+.brand span{color:#0db7df}
+h1{font-size:28px;color:#fff;margin:28px 0 8px}
+h2{font-size:19px;color:#72e1ff;margin:32px 0 8px}
+p,li{color:#c6d9f2}
+code{background:#0b1b35;border:1px solid #244362;border-radius:5px;padding:2px 7px;color:#9ceaff;font-size:14px}
+pre{background:#0b1b35;border:1px solid #244362;border-radius:8px;padding:14px 16px;overflow:auto;color:#9ceaff;font-size:14px}
+table{border-collapse:collapse;width:100%;margin:12px 0}
+td,th{border:1px solid #244362;padding:8px 12px;text-align:left;font-size:14px}
+th{color:#72e1ff}
+a{color:#0db7df}
+.nav{margin-top:40px;padding-top:16px;border-top:1px solid #244362;font-size:14px}
+</style>
+</head>
+<body><div class="wrap">
+<div class="brand">WORKMATE <span>/ REACH</span> &nbsp;&middot;&nbsp; HELP</div>
+
+<h1>Designing e-mail templates</h1>
+<p>A template is the reusable frame around your campaign content: header, colours, footer. When you send a campaign, your message is placed inside the template.</p>
+<h2>Visual templates (recommended)</h2>
+<p>Choose <strong>Campaign / Visual</strong> when creating a template and design it by dragging blocks: text, images, buttons, dividers. No code needed. Save it, then pick it when you create a campaign.</p>
+<h2>HTML templates</h2>
+<p>Choose <strong>Campaign / HTML</strong> if you prefer writing your own HTML. One rule: the template must contain this placeholder exactly once, where the campaign content should appear:</p>
+<pre>{{ template "content" . }}</pre>
+<h2>Personalising your e-mails</h2>
+<p>You can greet each subscriber by name and use their details anywhere in a template or campaign:</p>
+<table>
+<tr><th>Code</th><th>What it prints</th></tr>
+<tr><td><code>{{ .Subscriber.Name }}</code></td><td>The subscriber's full name</td></tr>
+<tr><td><code>{{ .Subscriber.FirstName }}</code></td><td>First name only</td></tr>
+<tr><td><code>{{ .Subscriber.Email }}</code></td><td>Their e-mail address</td></tr>
+<tr><td><code>{{ UnsubscribeURL }}</code></td><td>The unsubscribe link (required in every campaign)</td></tr>
+</table>
+<p class="nav"><a href="/help/">All help topics</a></p></div></body></html>

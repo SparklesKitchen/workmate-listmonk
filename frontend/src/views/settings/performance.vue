@@ -71,7 +71,7 @@
         </div>
         <div class="column">
           <br /><br />
-          <a href="https://listmonk.app/docs/maintenance/performance/" target="_blank" rel="noopener noreferer">
+          <a href="/help/" target="_blank" rel="noopener noreferer">
             <b-icon icon="link-variant" /> {{ $t('globals.buttons.learnMore') }}
           </a>
         </div>
