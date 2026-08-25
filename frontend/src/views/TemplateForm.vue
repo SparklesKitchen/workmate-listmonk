@@ -112,7 +112,7 @@ export default Vue.extend({
       form: {
         name: '',
         subject: '',
-        type: 'campaign',
+        type: 'campaign_visual',
         optin: '',
         body: null,
         bodySource: null,
@@ -188,7 +188,7 @@ export default Vue.extend({
   },
 
   mounted() {
-    this.form = { ...this.$props.data };
+    this.form = { ...this.form, ...this.$props.data };
 
     this.$nextTick(() => {
       this.$refs.focus.focus();
