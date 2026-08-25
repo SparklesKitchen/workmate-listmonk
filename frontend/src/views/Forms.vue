@@ -63,6 +63,44 @@
         <code-editor lang="html" v-if="checked.length > 0" v-model="html" disabled />
       </div>
     </div><!-- columns -->
+
+    <hr />
+    <div data-cy="form-designer">
+      <h4>Form designer</h4>
+      <p class="is-size-7 has-text-grey">
+        Design a branded form for your own website. Copy the generated HTML into any page;
+        it submits in place and shows your success message. No Reach or WorkMate branding is included.
+      </p>
+      <div class="columns mt-2" v-if="checked.length > 0">
+        <div class="column is-4">
+          <b-field label="Heading"><b-input v-model="design.heading" /></b-field>
+          <b-field label="Button text"><b-input v-model="design.button" /></b-field>
+          <b-field><b-checkbox v-model="design.showName">Ask for the subscriber's name</b-checkbox></b-field>
+          <b-field label="Consent text (optional)">
+            <b-input v-model="design.consent" placeholder="I agree to receive this newsletter" />
+          </b-field>
+          <b-field label="Success message"><b-input v-model="design.success" /></b-field>
+          <div class="columns">
+            <div class="column"><b-field label="Background"><input type="color" v-model="design.bg" /></b-field></div>
+            <div class="column"><b-field label="Text"><input type="color" v-model="design.text" /></b-field></div>
+            <div class="column"><b-field label="Button"><input type="color" v-model="design.accent" /></b-field></div>
+          </div>
+          <b-field label="Corner radius">
+            <b-slider v-model="design.radius" :min="0" :max="24" />
+          </b-field>
+        </div>
+        <div class="column is-4">
+          <h5>Preview</h5>
+          <iframe title="Form preview" :srcdoc="designedHTML" style="width:100%;height:420px;border:1px solid #ccc;background:#fff;" />
+        </div>
+        <div class="column is-4">
+          <h5>Embed HTML</h5>
+          <b-button size="is-small" class="mb-2" @click="copyDesignedHTML" data-cy="btn-copy-designed">Copy HTML</b-button>
+          <code-editor lang="html" v-model="designedHTML" disabled />
+        </div>
+      </div>
+      <p v-else class="is-size-7 has-text-grey">Select at least one list above to design a form.</p>
+    </div>
   </section>
 </template>
 
@@ -83,6 +121,17 @@ export default Vue.extend({
       checked: [],
       html: '',
       selectedRedirectURL: '',
+      design: {
+        heading: 'Subscribe to our newsletter',
+        button: 'Subscribe',
+        showName: true,
+        consent: '',
+        success: 'Thanks! Please check your inbox to confirm.',
+        bg: '#ffffff',
+        text: '#1a1a2e',
+        accent: '#0db7df',
+        radius: 8,
+      },
     };
   },
 
@@ -94,6 +143,12 @@ export default Vue.extend({
         .replace(/>/g, '&gt;')
         .replace(/"/g, '&quot;')
         .replace(/'/g, '&#39;');
+    },
+
+    copyDesignedHTML() {
+      navigator.clipboard.writeText(this.designedHTML).then(() => {
+        this.$utils.toast('Form HTML copied');
+      });
     },
 
     renderHTML() {
@@ -152,6 +207,42 @@ export default Vue.extend({
 
     isWorkMateCustomer() {
       return this.profile.userRole && this.profile.userRole.name === 'WorkMate Customer';
+    },
+
+    designedHTML() {
+      const d = this.design;
+      const esc = this.escapeAttr;
+      const uuids = this.checked
+        .map((i) => this.publicLists[parseInt(i, 10)])
+        .filter((l) => l)
+        .map((l) => l.uuid);
+      const id = `nl-${uuids.length ? uuids[0].substr(0, 8) : 'form'}`;
+      const root = this.serverConfig.root_url;
+      const consent = d.consent
+        ? `      <label style="display:flex;gap:8px;align-items:flex-start;font-size:13px;margin:0 0 12px;">`
+          + `<input type="checkbox" required style="margin-top:2px;" /> <span>${esc(d.consent)}</span></label>\n`
+        : '';
+      const nameField = d.showName
+        ? `      <input type="text" name="name" placeholder="Name" style="${'display:block;width:100%;box-sizing:border-box;padding:10px 12px;margin:0 0 10px;border:1px solid #d0d5dd;border-radius:' + d.radius + 'px;font:inherit;'}" />\n`
+        : '';
+      // ponytail: inline styles + one tiny script so the snippet works pasted anywhere
+      return `<div id="${id}" style="background:${d.bg};color:${d.text};padding:24px;border-radius:${d.radius}px;max-width:420px;font-family:system-ui,sans-serif;">\n`
+        + `  <form>\n`
+        + `    <h3 style="margin:0 0 14px;font-size:19px;">${esc(d.heading)}</h3>\n`
+        + `      <input type="email" name="email" required placeholder="E-mail" style="display:block;width:100%;box-sizing:border-box;padding:10px 12px;margin:0 0 10px;border:1px solid #d0d5dd;border-radius:${d.radius}px;font:inherit;" />\n`
+        + nameField
+        + consent
+        + `    <button type="submit" style="width:100%;padding:11px 0;border:0;border-radius:${d.radius}px;background:${d.accent};color:#fff;font:600 15px system-ui,sans-serif;cursor:pointer;">${esc(d.button)}</button>\n`
+        + `    <p data-nl-msg style="display:none;margin:12px 0 0;font-size:14px;"></p>\n`
+        + `  </form>\n`
+        + `</div>\n`
+        + `<${'script'}>(function(){var w=document.getElementById("${id}"),f=w.querySelector("form"),m=w.querySelector("[data-nl-msg]");`
+        + `f.addEventListener("submit",function(e){e.preventDefault();`
+        + `fetch("${root}/api/public/subscription",{method:"POST",headers:{"Content-Type":"application/json"},`
+        + `body:JSON.stringify({email:f.email.value,name:f.name?f.name.value:"",list_uuids:${JSON.stringify(uuids)}})})`
+        + `.then(function(r){m.style.display="block";if(r.ok){m.textContent="${esc(d.success)}";f.reset();}`
+        + `else{r.json().then(function(j){m.textContent=(j&&j.message)||"Something went wrong. Please try again.";});}})`
+        + `.catch(function(){m.style.display="block";m.textContent="Something went wrong. Please try again.";});});})();</${'script'}>`;
     },
 
     publicLists() {

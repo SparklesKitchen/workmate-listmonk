@@ -26,13 +26,11 @@
     <div class="container wrap">
 		<header class="header">
 			<div class="logo">
-				<a href="{{ if .EnablePublicSubPage }}{{ .RootURL}}/subscription/form{{ end }}">
 				{{ if ne .LogoURL "" }}
+				<a href="{{ if .EnablePublicSubPage }}{{ .RootURL}}/subscription/form{{ end }}">
 					<img src="{{ .LogoURL }}" alt="{{ .Data.Title }}" />
-				{{ else }}
-					<img src="/public/static/logo.svg?v={{ .AssetVersion }}" alt="{{ .Data.Title }}" />
-				{{ end }}
 				</a>
+				{{ end }}
 			</div>
 		</header>
 {{ end }}
@@ -40,7 +38,9 @@
 {{ define "footer" }}
 	</div>
 	
-	<footer class="container"></footer>
+	<footer class="container">
+		Powered by <a target="_blank" rel="noreferrer" href="https://workmateos.co.uk">WorkMate Reach</a>
+	</footer>
 </body>
 </html>
 {{ end }}

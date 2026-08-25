@@ -16,8 +16,12 @@
                 <input id="name" name="name" type="text" placeholder="{{ L.T "public.subName" }}" >
             </p>
 
+            {{ if eq (len .Data.Lists) 1 }}
+                {{ range $i, $l := .Data.Lists }}
+                    <input type="hidden" name="l" value="{{ $l.UUID }}" >
+                {{ end }}
+            {{ else }}
             <ul class="lists">
-                <h2>{{ L.T "globals.terms.lists" }}</h2>
                 {{ range $i, $l := .Data.Lists }}
                     <li>
                         <input checked="true" id="l-{{ $l.UUID}}" type="checkbox" name="l" value="{{ $l.UUID }}" >
@@ -28,6 +32,7 @@
                     </li>
                 {{ end }}
             </ul>
+            {{ end }}
 
             {{ if .Data.Captcha.Enabled }}
                 <div class="captcha">

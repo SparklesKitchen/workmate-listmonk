@@ -16,6 +16,9 @@
         <b-navbar-item tag="a" href="https://app.workmateos.co.uk/" class="workmate-return-agent"
           data-cy="btn-workmate-return" title="Back to WorkMate OS" aria-label="Back to WorkMate OS" />
 
+        <b-navbar-item tag="a" href="https://app.workmateos.co.uk/" class="workmate-return-pill"
+          data-cy="btn-workmate-return-pill">&#8592;&nbsp;WorkMate OS</b-navbar-item>
+
         <b-navbar-item tag="a" href="#" @click.prevent="emitPageRefresh" data-cy="btn-refresh"
           :aria-label="$t('globals.buttons.refresh')">
           <b-tooltip :label="$t('globals.buttons.refresh')" type="is-dark" position="is-bottom">
@@ -242,6 +245,28 @@ export default Vue.extend({
 
 /* Invisible click target over the banner agent circle (drawn by the
    appearance CSS on .navbar:before) so customers can return to WorkMate OS. */
+.navbar .navbar-item.workmate-return-pill {
+  position: fixed !important;
+  top: 24px !important;
+  right: 28px !important;
+  z-index: 6 !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  height: 34px !important;
+  padding: 0 16px !important;
+  border: 1px solid #2c6f8f !important;
+  border-radius: 17px !important;
+  background: rgba(6, 18, 37, 0.85) !important;
+  color: #72e1ff !important;
+  font: 600 12px/1 Inter, sans-serif !important;
+  letter-spacing: 0.08em !important;
+}
+
+.navbar .navbar-item.workmate-return-pill:hover {
+  background: #123b57 !important;
+  color: #9ceaff !important;
+}
+
 .navbar .navbar-item.workmate-return-agent {
   position: fixed !important;
   right: 62px !important;
