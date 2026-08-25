@@ -81,7 +81,9 @@
     </div>
 
     <b-modal v-model="isDesignerOpen" scroll="keep" :width="1100">
-      <div class="box">
+      <div class="box" style="position: relative;">
+        <b-button size="is-small" style="position:absolute;top:14px;right:14px;"
+          aria-label="Close" data-cy="btn-close-designer" @click="isDesignerOpen = false">&#215;</b-button>
         <h4>Form designer</h4>
         <div class="columns mt-2">
           <div class="column is-4">
