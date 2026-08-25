@@ -81,9 +81,9 @@
           </b-field>
           <b-field label="Success message"><b-input v-model="design.success" /></b-field>
           <div class="columns">
-            <div class="column"><b-field label="Background"><input type="color" v-model="design.bg" /></b-field></div>
-            <div class="column"><b-field label="Text"><input type="color" v-model="design.text" /></b-field></div>
-            <div class="column"><b-field label="Button"><input type="color" v-model="design.accent" /></b-field></div>
+            <div class="column"><b-field label="Background"><input type="color" v-model="design.bg" aria-label="Background color" /></b-field></div>
+            <div class="column"><b-field label="Text"><input type="color" v-model="design.text" aria-label="Text color" /></b-field></div>
+            <div class="column"><b-field label="Button"><input type="color" v-model="design.accent" aria-label="Button color" /></b-field></div>
           </div>
           <b-field label="Corner radius">
             <b-slider v-model="design.radius" :min="0" :max="24" />
@@ -218,30 +218,32 @@ export default Vue.extend({
         .map((l) => l.uuid);
       const id = `nl-${uuids.length ? uuids[0].substr(0, 8) : 'form'}`;
       const root = this.serverConfig.root_url;
+      const inputStyle = `display:block;width:100%;box-sizing:border-box;padding:10px 12px;margin:0 0 10px;border:1px solid #d0d5dd;border-radius:${d.radius}px;font:inherit;`;
+      const consentStyle = 'display:flex;gap:8px;align-items:flex-start;font-size:13px;margin:0 0 12px;';
       const consent = d.consent
-        ? `      <label style="display:flex;gap:8px;align-items:flex-start;font-size:13px;margin:0 0 12px;">`
-          + `<input type="checkbox" required style="margin-top:2px;" /> <span>${esc(d.consent)}</span></label>\n`
+        ? `      <label style="${consentStyle}"><input type="checkbox" required style="margin-top:2px;" /> <span>${esc(d.consent)}</span></label>\n`
         : '';
       const nameField = d.showName
-        ? `      <input type="text" name="name" placeholder="Name" style="${'display:block;width:100%;box-sizing:border-box;padding:10px 12px;margin:0 0 10px;border:1px solid #d0d5dd;border-radius:' + d.radius + 'px;font:inherit;'}" />\n`
+        ? `      <input type="text" name="name" placeholder="Name" style="${inputStyle}" />\n`
         : '';
       // ponytail: inline styles + one tiny script so the snippet works pasted anywhere
       return `<div id="${id}" style="background:${d.bg};color:${d.text};padding:24px;border-radius:${d.radius}px;max-width:420px;font-family:system-ui,sans-serif;">\n`
-        + `  <form>\n`
+        + '  <form>\n'
         + `    <h3 style="margin:0 0 14px;font-size:19px;">${esc(d.heading)}</h3>\n`
-        + `      <input type="email" name="email" required placeholder="E-mail" style="display:block;width:100%;box-sizing:border-box;padding:10px 12px;margin:0 0 10px;border:1px solid #d0d5dd;border-radius:${d.radius}px;font:inherit;" />\n`
-        + nameField
-        + consent
-        + `    <button type="submit" style="width:100%;padding:11px 0;border:0;border-radius:${d.radius}px;background:${d.accent};color:#fff;font:600 15px system-ui,sans-serif;cursor:pointer;">${esc(d.button)}</button>\n`
-        + `    <p data-nl-msg style="display:none;margin:12px 0 0;font-size:14px;"></p>\n`
-        + `  </form>\n`
-        + `</div>\n`
+        + `      <input type="email" name="email" required placeholder="E-mail" style="${inputStyle}" />\n${
+          nameField
+        }${consent
+        }    <button type="submit" style="width:100%;padding:11px 0;border:0;border-radius:${d.radius}px;`
+        + `background:${d.accent};color:#fff;font:600 15px system-ui,sans-serif;cursor:pointer;">${esc(d.button)}</button>\n`
+        + '    <p data-nl-msg style="display:none;margin:12px 0 0;font-size:14px;"></p>\n'
+        + '  </form>\n'
+        + '</div>\n'
         + `<${'script'}>(function(){var w=document.getElementById("${id}"),f=w.querySelector("form"),m=w.querySelector("[data-nl-msg]");`
-        + `f.addEventListener("submit",function(e){e.preventDefault();`
+        + 'f.addEventListener("submit",function(e){e.preventDefault();'
         + `fetch("${root}/api/public/subscription",{method:"POST",headers:{"Content-Type":"application/json"},`
         + `body:JSON.stringify({email:f.email.value,name:f.name?f.name.value:"",list_uuids:${JSON.stringify(uuids)}})})`
         + `.then(function(r){m.style.display="block";if(r.ok){m.textContent="${esc(d.success)}";f.reset();}`
-        + `else{r.json().then(function(j){m.textContent=(j&&j.message)||"Something went wrong. Please try again.";});}})`
+        + 'else{r.json().then(function(j){m.textContent=(j&&j.message)||"Something went wrong. Please try again.";});}})'
         + `.catch(function(){m.style.display="block";m.textContent="Something went wrong. Please try again.";});});})();</${'script'}>`;
     },
 
