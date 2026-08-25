@@ -153,7 +153,7 @@ export default Vue.extend({
 
     // Show the new form.
     showNewForm() {
-      this.curItem = { type: 'campaign' };
+      this.curItem = { type: 'campaign_visual', body: '', bodySource: null };
       this.isFormVisible = true;
       this.isEditing = false;
     },

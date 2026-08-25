@@ -189,6 +189,9 @@ export default Vue.extend({
 
   mounted() {
     this.form = { ...this.form, ...this.$props.data };
+    if (!this.isEditing && this.form.body === null) {
+      this.form.body = '';
+    }
 
     this.$nextTick(() => {
       this.$refs.focus.focus();

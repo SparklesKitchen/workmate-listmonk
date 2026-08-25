@@ -68,39 +68,51 @@
     <div data-cy="form-designer">
       <h4>Form designer</h4>
       <p class="is-size-7 has-text-grey">
-        Design a branded form for your own website. Copy the generated HTML into any page;
-        it submits in place and shows your success message. No Reach or WorkMate branding is included.
+        Design a branded form for your own website. It carries no Reach or WorkMate branding
+        and submits in place with your success message.
       </p>
-      <div class="columns mt-2" v-if="checked.length > 0">
-        <div class="column is-4">
-          <b-field label="Heading"><b-input v-model="design.heading" /></b-field>
-          <b-field label="Button text"><b-input v-model="design.button" /></b-field>
-          <b-field><b-checkbox v-model="design.showName">Ask for the subscriber's name</b-checkbox></b-field>
-          <b-field label="Consent text (optional)">
-            <b-input v-model="design.consent" placeholder="I agree to receive this newsletter" />
-          </b-field>
-          <b-field label="Success message"><b-input v-model="design.success" /></b-field>
-          <div class="columns">
-            <div class="column"><b-field label="Background"><input type="color" v-model="design.bg" aria-label="Background color" /></b-field></div>
-            <div class="column"><b-field label="Text"><input type="color" v-model="design.text" aria-label="Text color" /></b-field></div>
-            <div class="column"><b-field label="Button"><input type="color" v-model="design.accent" aria-label="Button color" /></b-field></div>
+      <b-button type="is-primary" class="mt-2" :disabled="checked.length === 0"
+        data-cy="btn-open-designer" @click="isDesignerOpen = true">
+        Open form designer
+      </b-button>
+      <p v-if="checked.length === 0" class="is-size-7 has-text-grey mt-2">
+        Select at least one list above first.
+      </p>
+    </div>
+
+    <b-modal v-model="isDesignerOpen" scroll="keep" :width="1100">
+      <div class="box">
+        <h4>Form designer</h4>
+        <div class="columns mt-2">
+          <div class="column is-4">
+            <b-field label="Heading"><b-input v-model="design.heading" /></b-field>
+            <b-field label="Button text"><b-input v-model="design.button" /></b-field>
+            <b-field><b-checkbox v-model="design.showName">Ask for the subscriber's name</b-checkbox></b-field>
+            <b-field label="Consent text (optional)">
+              <b-input v-model="design.consent" placeholder="I agree to receive this newsletter" />
+            </b-field>
+            <b-field label="Success message"><b-input v-model="design.success" /></b-field>
+            <div class="columns">
+              <div class="column"><b-field label="Background"><input type="color" v-model="design.bg" aria-label="Background color" /></b-field></div>
+              <div class="column"><b-field label="Text"><input type="color" v-model="design.text" aria-label="Text color" /></b-field></div>
+              <div class="column"><b-field label="Button"><input type="color" v-model="design.accent" aria-label="Button color" /></b-field></div>
+            </div>
+            <b-field label="Corner radius">
+              <b-slider v-model="design.radius" :min="0" :max="24" />
+            </b-field>
           </div>
-          <b-field label="Corner radius">
-            <b-slider v-model="design.radius" :min="0" :max="24" />
-          </b-field>
-        </div>
-        <div class="column is-4">
-          <h5>Preview</h5>
-          <iframe title="Form preview" :srcdoc="designedHTML" style="width:100%;height:420px;border:1px solid #ccc;background:#fff;" />
-        </div>
-        <div class="column is-4">
-          <h5>Embed HTML</h5>
-          <b-button size="is-small" class="mb-2" @click="copyDesignedHTML" data-cy="btn-copy-designed">Copy HTML</b-button>
-          <code-editor lang="html" v-model="designedHTML" disabled />
+          <div class="column is-4">
+            <h5>Preview</h5>
+            <iframe title="Form preview" :srcdoc="designedHTML" style="width:100%;height:440px;border:1px solid #ccc;background:#fff;" />
+          </div>
+          <div class="column is-4">
+            <h5>Embed HTML</h5>
+            <b-button size="is-small" class="mb-2" @click="copyDesignedHTML" data-cy="btn-copy-designed">Copy HTML</b-button>
+            <code-editor lang="html" v-model="designedHTML" disabled />
+          </div>
         </div>
       </div>
-      <p v-else class="is-size-7 has-text-grey">Select at least one list above to design a form.</p>
-    </div>
+    </b-modal>
   </section>
 </template>
 
@@ -121,6 +133,7 @@ export default Vue.extend({
       checked: [],
       html: '',
       selectedRedirectURL: '',
+      isDesignerOpen: false,
       design: {
         heading: 'Subscribe to our newsletter',
         button: 'Subscribe',
