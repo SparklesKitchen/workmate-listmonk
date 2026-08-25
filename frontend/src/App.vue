@@ -8,16 +8,14 @@
             <img class="favicon" src="@/assets/favicon.png" alt="" />
           </router-link>
         </div>
+        <a href="https://app.workmateos.co.uk/" class="workmate-return-agent" data-cy="btn-workmate-return"
+          title="Back to WorkMate OS" aria-label="Back to WorkMate OS" />
+        <a href="https://app.workmateos.co.uk/" class="workmate-return-pill"
+          data-cy="btn-workmate-return-pill">&#8592;&nbsp;WorkMate OS</a>
       </template>
       <template #end>
         <navigation v-if="isMobile" :is-mobile="isMobile" :active-item="activeItem" :active-group="activeGroup"
           @toggleGroup="toggleGroup" @doLogout="doLogout" />
-
-        <b-navbar-item tag="a" href="https://app.workmateos.co.uk/" class="workmate-return-agent"
-          data-cy="btn-workmate-return" title="Back to WorkMate OS" aria-label="Back to WorkMate OS" />
-
-        <b-navbar-item tag="a" href="https://app.workmateos.co.uk/" class="workmate-return-pill"
-          data-cy="btn-workmate-return-pill">&#8592;&nbsp;WorkMate OS</b-navbar-item>
 
         <b-navbar-item tag="a" href="#" @click.prevent="emitPageRefresh" data-cy="btn-refresh"
           :aria-label="$t('globals.buttons.refresh')">
@@ -245,7 +243,23 @@ export default Vue.extend({
 
 /* Invisible click target over the banner agent circle (drawn by the
    appearance CSS on .navbar:before) so customers can return to WorkMate OS. */
-.navbar .navbar-item.workmate-return-pill {
+/* Stretch the brand container across the whole banner so the return controls
+   anchor to the banner box; the (invisible) logo link goes inert. */
+.navbar .navbar-brand {
+  position: absolute !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  pointer-events: none !important;
+}
+
+.navbar .workmate-return-pill,
+.navbar .workmate-return-agent {
+  pointer-events: auto !important;
+}
+
+.navbar .workmate-return-pill {
   position: absolute !important;
   top: 148px !important;
   left: 16px !important;
@@ -262,15 +276,16 @@ export default Vue.extend({
   letter-spacing: 0.08em !important;
 }
 
-.navbar .navbar-item.workmate-return-pill:hover {
+.navbar .workmate-return-pill:hover {
   background: #123b57 !important;
   color: #9ceaff !important;
 }
 
-.navbar .navbar-item.workmate-return-agent {
+.navbar .workmate-return-agent {
   position: absolute !important;
   right: 62px !important;
-  top: -15px !important;
+  top: 50% !important;
+  transform: translateY(-50%) !important;
   width: 220px !important;
   height: 220px !important;
   border-radius: 50% !important;
