@@ -54,30 +54,36 @@
         </ul>
         </template>
       </div>
-      <div class="column" data-cy="form">
-        <h4>{{ $t('forms.formHTML') }}</h4>
-        <p>
-          {{ $t('forms.formHTMLHelp') }}
-        </p>
-
-        <code-editor lang="html" v-if="checked.length > 0" v-model="html" disabled />
+      <div class="column">
+        <div data-cy="form-designer">
+          <h4>Form designer</h4>
+          <p class="is-size-7 has-text-grey">
+            Design a branded form for your own website. It carries no Reach or WorkMate branding
+            and submits in place with your success message.
+          </p>
+          <b-button type="is-primary" class="mt-2" :disabled="checked.length === 0"
+            data-cy="btn-open-designer" @click="isDesignerOpen = true">
+            Open form designer
+          </b-button>
+          <p v-if="checked.length === 0" class="is-size-7 has-text-grey mt-2">
+            Select at least one list above first.
+          </p>
+        </div>
       </div>
     </div><!-- columns -->
 
     <hr />
-    <div data-cy="form-designer">
-      <h4>Form designer</h4>
-      <p class="is-size-7 has-text-grey">
-        Design a branded form for your own website. It carries no Reach or WorkMate branding
-        and submits in place with your success message.
+    <div data-cy="form">
+      <h4>{{ $t('forms.formHTML') }}</h4>
+      <p>
+        {{ $t('forms.formHTMLHelp') }}
       </p>
-      <b-button type="is-primary" class="mt-2" :disabled="checked.length === 0"
-        data-cy="btn-open-designer" @click="isDesignerOpen = true">
-        Open form designer
+      <b-button size="is-small" :disabled="checked.length === 0"
+        data-cy="btn-show-form-html" @click="showHtml = !showHtml">
+        {{ showHtml ? 'Hide form HTML' : 'Show form HTML' }}
       </b-button>
-      <p v-if="checked.length === 0" class="is-size-7 has-text-grey mt-2">
-        Select at least one list above first.
-      </p>
+
+      <code-editor lang="html" v-if="checked.length > 0 && showHtml" v-model="html" disabled />
     </div>
 
     <b-modal v-model="isDesignerOpen" scroll="keep" :width="1100">
@@ -134,6 +140,7 @@ export default Vue.extend({
     return {
       checked: [],
       html: '',
+      showHtml: false,
       selectedRedirectURL: '',
       isDesignerOpen: false,
       design: {

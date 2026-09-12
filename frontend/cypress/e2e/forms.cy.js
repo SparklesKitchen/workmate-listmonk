@@ -21,7 +21,8 @@ describe('Forms', () => {
 
     // Check that the ID of the list in the checkbox appears in the HTML.
     cy.get('ul[data-cy=lists] input').then(($inp) => {
-      cy.get('[role=textbox]').contains($inp.val());
+      cy.get('[data-cy=btn-show-form-html]').click();
+      cy.get('[data-cy=form] [role=textbox]').contains($inp.val());
     });
 
     // Click the list checkbox.
