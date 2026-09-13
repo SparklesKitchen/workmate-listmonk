@@ -306,7 +306,8 @@ export default Vue.extend({
           return `      <label>${label}<select name="attribs.${key}" data-nl-field="${key}"${required} style="${inputStyle}">${options}</select></label>\n`;
         }
         if (field.type === 'checkbox' || field.type === 'consent') {
-          return `      <label style="${consentStyle}"><input name="attribs.${key}" data-nl-field="${key}" type="checkbox"${required} /> <span>${label}</span></label>\n`;
+          const name = key ? `attribs.${key}` : 'consent';
+          return `      <label style="${consentStyle}"><input name="${name}" data-nl-field="${key}" type="checkbox"${required} /> <span>${label}</span></label>\n`;
         }
         return `      <label>${label}<input name="attribs.${key}" data-nl-field="${key}" type="${field.type}"${required} style="${inputStyle}" /></label>\n`;
       }).join('');
@@ -328,8 +329,12 @@ export default Vue.extend({
         + `<${'script'}>(function(){var w=document.getElementById("${id}"),f=w.querySelector("form"),m=w.querySelector("[data-nl-msg]");`
         + 'f.addEventListener("submit",function(e){e.preventDefault();var a={};'
         + 'f.querySelectorAll("[data-nl-field]").forEach(function(i){a[i.dataset.nlField]=i.type==="checkbox"?(i.checked?"true":""):i.value;});'
+        + 'var p={email:f.email.value,name:f.name?f.name.value:"",list_uuids:'
+        + JSON.stringify(uuids) + ',attribs:a};'
+        + 'var h=f.querySelector("[name=\\"h-captcha-response\\"]"),x=f.querySelector("[name=\\"altcha\\"]");'
+        + 'if(h)p["h-captcha-response"]=h.value;if(x)p.altcha=x.value;'
         + `fetch("${root}/api/public/subscription",{method:"POST",headers:{"Content-Type":"application/json"},`
-        + `body:JSON.stringify({email:f.email.value,name:f.name?f.name.value:"",list_uuids:${JSON.stringify(uuids)},attribs:a})})`
+        + 'body:JSON.stringify(p)})'
         + `.then(function(r){m.style.display="block";if(r.ok){m.textContent="${esc(d.success)}";f.reset();}`
         + 'else{r.json().then(function(j){m.textContent=(j&&j.message)||"Something went wrong. Please try again.";});}})'
         + `.catch(function(){m.style.display="block";m.textContent="Something went wrong. Please try again.";});});})();</${'script'}>`;

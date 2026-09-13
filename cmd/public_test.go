@@ -68,6 +68,11 @@ func TestCollectSubscriptionFormAttribs(t *testing.T) {
 	if _, err := collectSubscriptionFormAttribs(url.Values{"attribs.company": {"WorkMate"}, "attribs.size": {"1-10"}, "attribs.consent": {"true"}, "attribs.unknown": {"x"}}, nil, fields); err == nil {
 		t.Fatal("unknown field key must fail")
 	}
+
+	jsonAttribs, err := collectSubscriptionFormAttribs(nil, map[string]string{"": "true", "updates": "false"}, normalized.Fields)
+	if err != nil || jsonAttribs["updates"] != false {
+		t.Fatalf("expected keyless consent and unchecked checkbox to be accepted: %#v, %v", jsonAttribs, err)
+	}
 }
 
 func TestMergeSubscriptionAttribsPreservesExistingAnswers(t *testing.T) {

@@ -149,14 +149,17 @@ func normalizeSubscriptionForm(in models.PublicSubscriptionForm) (models.PublicS
 
 func collectSubscriptionFormAttribs(values url.Values, jsonAttribs map[string]string, fields []models.PublicSubscriptionFormField) (models.JSON, error) {
 	allowed := make(map[string]models.PublicSubscriptionFormField, len(fields))
+	keylessConsent := false
 	for _, field := range fields {
 		if field.Key != "" {
 			allowed[field.Key] = field
+		} else if field.Type == "consent" {
+			keylessConsent = true
 		}
 	}
 	if jsonAttribs != nil {
 		for key := range jsonAttribs {
-			if _, ok := allowed[key]; !ok {
+			if _, ok := allowed[key]; !ok && (key != "" || !keylessConsent) {
 				return nil, echo.NewHTTPError(http.StatusBadRequest, "Please use the fields on this form.")
 			}
 		}
@@ -186,8 +189,8 @@ func collectSubscriptionFormAttribs(values url.Values, jsonAttribs map[string]st
 			if field.Required && !checked {
 				return nil, echo.NewHTTPError(http.StatusBadRequest, "Please complete the required fields.")
 			}
-			if checked && field.Key != "" {
-				attribs[field.Key] = true
+			if field.Key != "" {
+				attribs[field.Key] = checked
 			}
 		case "select":
 			if value == "" && !field.Required {
@@ -610,37 +613,6 @@ func (a *App) SubscriptionForm(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusBadGateway, a.i18n.T("public.invalidFeature"))
 	}
 
-	// Process CAPTCHA.
-	if a.captcha.IsEnabled() {
-		var val string
-
-		// Get the appropriate captcha response field based on provider.
-		switch a.captcha.GetProvider() {
-		case captcha.ProviderHCaptcha:
-			val = c.FormValue("h-captcha-response")
-		case captcha.ProviderAltcha:
-			val = c.FormValue("altcha")
-		default:
-			return c.Render(http.StatusBadRequest, tplMessage,
-				makeMsgTpl(a.i18n.T("public.errorTitle"), "", a.i18n.T("public.invalidCaptcha")))
-		}
-
-		if val == "" {
-			return c.Render(http.StatusBadRequest, tplMessage,
-				makeMsgTpl(a.i18n.T("public.errorTitle"), "", a.i18n.T("public.invalidCaptcha")))
-		}
-
-		err, ok := a.captcha.Verify(val)
-		if err != nil {
-			a.log.Printf("captcha request failed: %v", err)
-		}
-
-		if !ok {
-			return c.Render(http.StatusBadRequest, tplMessage,
-				makeMsgTpl(a.i18n.T("public.errorTitle"), "", a.i18n.T("public.invalidCaptcha")))
-		}
-	}
-
 	hasOptin, err := a.processSubForm(c)
 	if err != nil {
 		e, ok := err.(*echo.HTTPError)
@@ -869,9 +841,32 @@ func (a *App) processSubForm(c echo.Context) (bool, error) {
 		Email         string            `form:"email" json:"email"`
 		FormListUUIDs []string          `form:"l" json:"list_uuids"`
 		Attribs       map[string]string `json:"attribs"`
+		HCaptcha      string            `form:"h-captcha-response" json:"h-captcha-response"`
+		Altcha        string            `form:"altcha" json:"altcha"`
 	}
 	if err := c.Bind(&req); err != nil {
 		return false, err
+	}
+
+	if a.captcha.IsEnabled() {
+		var val string
+		switch a.captcha.GetProvider() {
+		case captcha.ProviderHCaptcha:
+			val = req.HCaptcha
+		case captcha.ProviderAltcha:
+			val = req.Altcha
+		default:
+			return false, echo.NewHTTPError(http.StatusBadRequest, a.i18n.T("public.invalidCaptcha"))
+		}
+		if val == "" {
+			return false, echo.NewHTTPError(http.StatusBadRequest, a.i18n.T("public.invalidCaptcha"))
+		}
+		if err, ok := a.captcha.Verify(val); err != nil || !ok {
+			if err != nil {
+				a.log.Printf("captcha request failed: %v", err)
+			}
+			return false, echo.NewHTTPError(http.StatusBadRequest, a.i18n.T("public.invalidCaptcha"))
+		}
 	}
 
 	if len(req.FormListUUIDs) == 0 {
