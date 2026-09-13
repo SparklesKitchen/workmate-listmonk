@@ -314,13 +314,24 @@ export default Vue.extend({
       const nameField = d.showName
         ? `      <input type="text" name="name" placeholder="Name" style="${inputStyle}" />\n`
         : '';
+      let captcha = '';
+      if (this.serverConfig.public_subscription.captcha_enabled) {
+        if (this.serverConfig.public_subscription.captcha_provider === 'altcha') {
+          captcha = `      <altcha-widget challengeurl="${this.escapeAttr(root)}/api/public/captcha/altcha"></altcha-widget>\n`
+            + `      <${'script'} type="module" src="${this.escapeAttr(root)}/public/static/altcha.umd.js" async defer></${'script'}>\n`;
+        } else if (this.serverConfig.public_subscription.captcha_provider === 'hcaptcha') {
+          captcha = `      <div class="h-captcha" data-sitekey="${this.escapeAttr(this.serverConfig.public_subscription.captcha_key)}"></div>\n`
+            + `      <${'script'} src="https://js.hcaptcha.com/1/api.js" async defer></${'script'}>\n`;
+        }
+      }
+      const successMessage = JSON.stringify(String(d.success)).replace(/\u2028/g, '\\u2028').replace(/\u2029/g, '\\u2029');
       // ponytail: inline styles + one tiny script so the snippet works pasted anywhere
       return `<div id="${id}" style="background:${d.bg};color:${d.text};padding:24px;border-radius:${d.radius}px;max-width:420px;font-family:system-ui,sans-serif;">\n`
         + '  <form>\n'
         + `    <h3 style="margin:0 0 14px;font-size:19px;">${esc(d.heading)}</h3>\n`
         + `      <input type="email" name="email" required placeholder="E-mail" style="${inputStyle}" />\n${
           nameField
-        }${consent}${customFields
+        }${consent}${customFields}${captcha
         }    <button type="submit" style="width:100%;padding:11px 0;border:0;border-radius:${d.radius}px;`
         + `background:${d.accent};color:#fff;font:600 15px system-ui,sans-serif;cursor:pointer;">${esc(d.button)}</button>\n`
         + '    <p data-nl-msg style="display:none;margin:12px 0 0;font-size:14px;"></p>\n'
@@ -335,7 +346,7 @@ export default Vue.extend({
         + 'if(h)p["h-captcha-response"]=h.value;if(x)p.altcha=x.value;'
         + `fetch("${root}/api/public/subscription",{method:"POST",headers:{"Content-Type":"application/json"},`
         + 'body:JSON.stringify(p)})'
-        + `.then(function(r){m.style.display="block";if(r.ok){m.textContent="${esc(d.success)}";f.reset();}`
+        + `.then(function(r){m.style.display="block";if(r.ok){m.textContent=${successMessage};f.reset();}`
         + 'else{r.json().then(function(j){m.textContent=(j&&j.message)||"Something went wrong. Please try again.";});}})'
         + `.catch(function(){m.style.display="block";m.textContent="Something went wrong. Please try again.";});});})();</${'script'}>`;
     },
