@@ -62,6 +62,35 @@ describe('Forms', () => {
     });
   });
 
+  it('Saves ordered fields and submits their answers', () => {
+    cy.get('[data-cy=lists] .checkbox').first().click();
+    cy.get('[data-cy=btn-open-designer]').click();
+    cy.get('[data-cy=btn-add-field]').click();
+    cy.get('[data-cy=btn-add-field]').click();
+    cy.get('[data-cy=designer-field]').first().within(() => {
+      cy.get('input').first().clear().type('Company');
+    });
+    cy.get('[data-cy=designer-field]').eq(1).within(() => {
+      cy.get('input').first().clear().type('Department');
+    });
+    cy.get('[data-cy=designer-field]').eq(1).trigger('dragstart');
+    cy.get('[data-cy=designer-field]').first().trigger('drop');
+    cy.get('[data-cy=btn-save-designer]').click();
+    cy.get('[data-cy=btn-close-designer]').click();
+    cy.reload();
+    cy.get('[data-cy=btn-open-designer]').click();
+    cy.get('[data-cy=designer-field]').first().should('contain', 'Department');
+    cy.get('[data-cy=form-designer]').should('contain', 'name="attribs.field_1"');
+    cy.get('[data-cy=btn-close-designer]').click();
+    cy.loginAndVisit(`${apiUrl}/subscription/form`);
+    cy.get('input[name=email]').type('fields@test.com');
+    cy.get('input[name="attribs.field_1"]').type('WorkMate');
+    cy.get('button[type=submit]').click();
+    cy.request(`${apiUrl}/api/subscribers`).its('body.data.results').should((subs) => {
+      expect(subs.find((sub) => sub.email === 'fields@test.com').attribs.field_1).to.equal('WorkMate');
+    });
+  });
+
   it('Unsubscribes', () => {
     // Add all lists to the dummy campaign.
     cy.request('PUT', `${apiUrl}/api/campaigns/1`, { lists: [2] });
