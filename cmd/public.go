@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"html/template"
 	"image"
@@ -105,6 +106,10 @@ var publicFormFieldKeyRE = regexp.MustCompile(`^[a-zA-Z][a-zA-Z0-9_-]{0,63}$`)
 
 func normalizeSubscriptionForm(in models.PublicSubscriptionForm) (models.PublicSubscriptionForm, bool) {
 	out := in
+	// Legacy forms and schemas without showName always showed the name field.
+	if !in.ShowNameSet {
+		out.ShowName = true
+	}
 	out.Fields = nil
 	seen := map[string]bool{}
 	for _, inField := range in.Fields {
@@ -145,6 +150,49 @@ func normalizeSubscriptionForm(in models.PublicSubscriptionForm) (models.PublicS
 		out.Fields = append(out.Fields, field)
 	}
 	return out, true
+}
+
+func selectPublicLists(lists []models.List, requested []string) []models.List {
+	if len(requested) == 0 {
+		return lists
+	}
+	byUUID := make(map[string]models.List, len(lists))
+	for _, list := range lists {
+		byUUID[list.UUID] = list
+	}
+	out := make([]models.List, 0, len(requested))
+	for _, uuid := range requested {
+		if list, ok := byUUID[uuid]; ok {
+			out = append(out, list)
+		}
+	}
+	return out
+}
+
+func resolveSubscriptionForm(global models.PublicSubscriptionForm, lists []models.List, requested []string) models.PublicSubscriptionForm {
+	for _, uuid := range requested {
+		for _, list := range lists {
+			if list.UUID != uuid || list.Attribs == nil {
+				continue
+			}
+			raw, ok := list.Attribs["hosted_form"]
+			if !ok {
+				break
+			}
+			data, err := json.Marshal(raw)
+			if err != nil {
+				break
+			}
+			var form models.PublicSubscriptionForm
+			if err := json.Unmarshal(data, &form); err == nil {
+				if form, ok := normalizeSubscriptionForm(form); ok {
+					return form
+				}
+			}
+			break
+		}
+	}
+	return global
 }
 
 func collectSubscriptionFormAttribs(values url.Values, jsonAttribs map[string]string, fields []models.PublicSubscriptionFormField) (models.JSON, error) {
@@ -578,13 +626,18 @@ func (a *App) SubscriptionFormPage(c echo.Context) error {
 
 	out := subFormTpl{}
 	out.Title = a.i18n.T("public.sub")
-	out.Lists = lists
 	settings, err := a.core.GetSettings()
 	if err != nil {
 		return c.Render(http.StatusInternalServerError, tplMessage,
 			makeMsgTpl(a.i18n.T("public.errorTitle"), "", a.i18n.Ts("public.errorFetchingLists")))
 	}
-	out.Form, _ = normalizeSubscriptionForm(settings.AppPublicSubscriptionForm)
+	globalForm, _ := normalizeSubscriptionForm(settings.AppPublicSubscriptionForm)
+	requested := c.QueryParams()["l"]
+	out.Lists = selectPublicLists(lists, requested)
+	if len(out.Lists) != len(requested) && len(requested) > 0 {
+		return echo.NewHTTPError(http.StatusBadRequest, a.i18n.T("globals.messages.invalidUUID"))
+	}
+	out.Form = resolveSubscriptionForm(globalForm, out.Lists, requested)
 
 	// Captcha configuration for template rendering.
 	if a.cfg.Security.Captcha.Altcha.Enabled {
@@ -892,23 +945,6 @@ func (a *App) processSubForm(c echo.Context) (bool, error) {
 		return false, echo.NewHTTPError(http.StatusBadRequest, a.i18n.T("subscribers.invalidName"))
 	}
 
-	settings, err := a.core.GetSettings()
-	if err != nil {
-		return false, err
-	}
-	form, validForm := normalizeSubscriptionForm(settings.AppPublicSubscriptionForm)
-	attribs := models.JSON{}
-	if validForm && len(form.Fields) > 0 {
-		values, err := c.FormParams()
-		if err != nil {
-			return false, err
-		}
-		attribs, err = collectSubscriptionFormAttribs(values, req.Attribs, form.Fields)
-		if err != nil {
-			return false, err
-		}
-	}
-
 	listUUIDs := pq.StringArray(req.FormListUUIDs)
 
 	// Fetch the list types and ensure that they are not private.
@@ -920,6 +956,33 @@ func (a *App) processSubForm(c echo.Context) (bool, error) {
 	for _, t := range listTypes {
 		if t == models.ListTypePrivate {
 			return false, echo.NewHTTPError(http.StatusBadRequest, a.i18n.T("globals.messages.invalidUUID"))
+		}
+	}
+
+	lists, err := a.core.GetLists(models.ListTypePublic, models.ListStatusActive, true, nil)
+	if err != nil {
+		return false, err
+	}
+	selectedLists := selectPublicLists(lists, req.FormListUUIDs)
+	if len(selectedLists) != len(req.FormListUUIDs) {
+		return false, echo.NewHTTPError(http.StatusBadRequest, a.i18n.T("globals.messages.invalidUUID"))
+	}
+
+	settings, err := a.core.GetSettings()
+	if err != nil {
+		return false, err
+	}
+	globalForm, _ := normalizeSubscriptionForm(settings.AppPublicSubscriptionForm)
+	form := resolveSubscriptionForm(globalForm, selectedLists, req.FormListUUIDs)
+	attribs := models.JSON{}
+	if len(form.Fields) > 0 {
+		values, err := c.FormParams()
+		if err != nil {
+			return false, err
+		}
+		attribs, err = collectSubscriptionFormAttribs(values, req.Attribs, form.Fields)
+		if err != nil {
+			return false, err
 		}
 	}
 

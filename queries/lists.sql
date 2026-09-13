@@ -53,7 +53,7 @@ SELECT id, uuid, type FROM lists WHERE
     END);
 
 -- name: create-list
-INSERT INTO lists (uuid, name, type, optin, status, tags, description) VALUES($1, $2, $3, $4, $5, $6, $7) RETURNING id;
+INSERT INTO lists (uuid, name, type, optin, status, tags, description, attribs) VALUES($1, $2, $3, $4, $5, $6, $7, COALESCE($8::JSONB, '{}')) RETURNING id;
 
 -- name: update-list
 WITH l AS (
@@ -64,6 +64,7 @@ WITH l AS (
         status=(CASE WHEN $5 != '' THEN $5::list_status ELSE status END),
         tags=$6::VARCHAR(100)[],
         description=(CASE WHEN $7 != '' THEN $7 ELSE description END),
+        attribs=(CASE WHEN $8::JSONB IS NULL THEN attribs ELSE $8::JSONB END),
         updated_at=NOW()
     WHERE id = $1
     RETURNING id, name
@@ -86,4 +87,3 @@ AND CASE
     -- Optional list IDs based on user permission.
     WHEN $3 = TRUE THEN TRUE ELSE id = ANY($4::INT[])
 END;
-

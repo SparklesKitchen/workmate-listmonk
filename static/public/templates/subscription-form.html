@@ -11,10 +11,19 @@
 
                 <input name="nonce" class="nonce" value="" />
             </p>
-            <p>
-                <label for="name">{{ L.T "public.subName" }}</label>
-                <input id="name" name="name" type="text" placeholder="{{ L.T "public.subName" }}" >
-            </p>
+            {{ if .Data.Form.ShowName }}
+                <p>
+                    <label for="name">{{ L.T "public.subName" }}</label>
+                    <input id="name" name="name" type="text" placeholder="{{ L.T "public.subName" }}" >
+                </p>
+            {{ end }}
+
+            {{ if .Data.Form.Consent }}
+                <p>
+                    <input id="consent" name="consent" type="checkbox" value="true" required>
+                    <label for="consent">{{ .Data.Form.Consent }}</label>
+                </p>
+            {{ end }}
 
             {{ range $field := .Data.Form.Fields }}
                 {{ if eq $field.Type "select" }}

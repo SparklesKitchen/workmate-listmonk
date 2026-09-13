@@ -1,17 +1,39 @@
 package models
 
-import "gopkg.in/volatiletech/null.v6"
+import (
+	"encoding/json"
+
+	"gopkg.in/volatiletech/null.v6"
+)
 
 // PublicSubscriptionForm is the optional public subscription form configuration.
 type PublicSubscriptionForm struct {
-	Heading string                        `json:"heading"`
-	Button  string                        `json:"button"`
-	Success string                        `json:"success"`
-	Bg      string                        `json:"bg"`
-	Text    string                        `json:"text"`
-	Accent  string                        `json:"accent"`
-	Radius  int                           `json:"radius"`
-	Fields  []PublicSubscriptionFormField `json:"fields"`
+	Heading     string                        `json:"heading"`
+	Button      string                        `json:"button"`
+	Success     string                        `json:"success"`
+	ShowName    bool                          `json:"showName"`
+	Consent     string                        `json:"consent"`
+	Bg          string                        `json:"bg"`
+	Text        string                        `json:"text"`
+	Accent      string                        `json:"accent"`
+	Radius      int                           `json:"radius"`
+	Fields      []PublicSubscriptionFormField `json:"fields"`
+	ShowNameSet bool                          `json:"-"`
+}
+
+func (f *PublicSubscriptionForm) UnmarshalJSON(data []byte) error {
+	type alias PublicSubscriptionForm
+	var decoded alias
+	if err := json.Unmarshal(data, &decoded); err != nil {
+		return err
+	}
+	var raw map[string]json.RawMessage
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return err
+	}
+	*f = PublicSubscriptionForm(decoded)
+	_, f.ShowNameSet = raw["showName"]
+	return nil
 }
 
 // PublicSubscriptionFormField is one administrator-configured subscriber attribute.

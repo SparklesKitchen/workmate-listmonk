@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"net/url"
 	"testing"
 
@@ -8,7 +9,12 @@ import (
 )
 
 func TestNormalizeSubscriptionFormFields(t *testing.T) {
-	form, ok := normalizeSubscriptionForm(models.PublicSubscriptionForm{Fields: []models.PublicSubscriptionFormField{
+	form, ok := normalizeSubscriptionForm(models.PublicSubscriptionForm{})
+	if !ok || !form.ShowName {
+		t.Fatalf("empty form should preserve the legacy name field default, got %#v, %v", form, ok)
+	}
+
+	form, ok = normalizeSubscriptionForm(models.PublicSubscriptionForm{Fields: []models.PublicSubscriptionFormField{
 		{Key: "company", Type: "text", Label: "Company", Required: true},
 		{Key: "size", Type: "select", Label: "Team size", Options: []string{"1-10", "11-50"}},
 		{Type: "consent", Label: "I agree"},
@@ -25,6 +31,83 @@ func TestNormalizeSubscriptionFormFields(t *testing.T) {
 	}})
 	if ok {
 		t.Fatal("unsafe field key must reject the configured schema")
+	}
+}
+
+func TestNormalizeSubscriptionFormShowNameDefaults(t *testing.T) {
+	for _, tt := range []struct {
+		name string
+		json string
+		want bool
+	}{
+		{name: "empty schema", json: `{}`, want: true},
+		{name: "explicit false", json: `{"heading":"Configured","showName":false}`, want: false},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			var input models.PublicSubscriptionForm
+			if err := json.Unmarshal([]byte(tt.json), &input); err != nil {
+				t.Fatal(err)
+			}
+			got, ok := normalizeSubscriptionForm(input)
+			if !ok || got.ShowName != tt.want {
+				t.Fatalf("ShowName = %v, want %v (form %#v, ok %v)", got.ShowName, tt.want, got, ok)
+			}
+		})
+	}
+}
+
+func TestResolveSubscriptionForm(t *testing.T) {
+	global := models.PublicSubscriptionForm{Heading: "Global"}
+	var valid models.PublicSubscriptionForm
+	if err := json.Unmarshal([]byte(`{"heading":"List one","showName":false,"consent":"I agree","fields":[{"key":"company","type":"text","label":"Company"}]}`), &valid); err != nil {
+		t.Fatal(err)
+	}
+
+	tests := []struct {
+		name      string
+		lists     []models.List
+		requested []string
+		want      string
+	}{
+		{
+			name:      "uses valid list schema",
+			lists:     []models.List{{UUID: "list-one", Attribs: models.JSON{"hosted_form": valid}}},
+			requested: []string{"list-one"},
+			want:      "List one",
+		},
+		{
+			name:      "falls back when schema is missing",
+			lists:     []models.List{{UUID: "list-one"}},
+			requested: []string{"list-one"},
+			want:      "Global",
+		},
+		{
+			name:      "falls back when schema is invalid",
+			lists:     []models.List{{UUID: "list-one", Attribs: models.JSON{"hosted_form": models.PublicSubscriptionForm{Fields: []models.PublicSubscriptionFormField{{Key: "bad key", Type: "text", Label: "Bad"}}}}}},
+			requested: []string{"list-one"},
+			want:      "Global",
+		},
+		{
+			name: "uses first requested list",
+			lists: []models.List{
+				{UUID: "list-one", Attribs: models.JSON{"hosted_form": models.PublicSubscriptionForm{Heading: "First"}}},
+				{UUID: "list-two", Attribs: models.JSON{"hosted_form": models.PublicSubscriptionForm{Heading: "Second"}}},
+			},
+			requested: []string{"list-two", "list-one"},
+			want:      "Second",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := resolveSubscriptionForm(global, tt.lists, tt.requested)
+			if got.Heading != tt.want {
+				t.Fatalf("heading = %q, want %q", got.Heading, tt.want)
+			}
+			if tt.name == "uses valid list schema" && (got.ShowName || got.Consent != "I agree") {
+				t.Fatalf("list form options were not preserved: %#v", got)
+			}
+		})
 	}
 }
 

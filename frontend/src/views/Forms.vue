@@ -27,9 +27,9 @@
           <hr />
           <h4>{{ $t('forms.publicSubPage') }}</h4>
           <p>
-            <a :href="`${serverConfig.root_url}/subscription/form`" target="_blank" rel="noopener noreferer"
+            <a :href="hostedFormURL" target="_blank" rel="noopener noreferer"
               data-cy="url">
-              {{ serverConfig.root_url }}/subscription/form
+              {{ hostedFormURL }}
             </a>
           </p>
         </template>
@@ -129,7 +129,9 @@
             <b-field label="Corner radius">
               <b-slider v-model="design.radius" :min="0" :max="24" />
             </b-field>
-            <b-button v-if="$can('settings:manage')" type="is-primary" @click="saveDesign" data-cy="btn-save-designer">Save form</b-button>
+            <b-button v-if="$can('settings:manage') && designerList
+              && ($can('lists:manage_all') || $canList(designerList.id, 'list:manage'))"
+              type="is-primary" @click="saveDesign" data-cy="btn-save-designer">Save form</b-button>
           </div>
           <div class="column is-4">
             <h5>Preview</h5>
@@ -151,6 +153,19 @@ import Vue from 'vue';
 import { mapState } from 'vuex';
 import CodeEditor from '../components/CodeEditor.vue';
 
+const defaultDesign = () => ({
+  heading: 'Subscribe to our newsletter',
+  button: 'Subscribe',
+  showName: true,
+  consent: '',
+  success: 'Thanks! Please check your inbox to confirm.',
+  bg: '#ffffff',
+  text: '#1a1a2e',
+  accent: '#0db7df',
+  radius: 8,
+  fields: [],
+});
+
 export default Vue.extend({
   name: 'ListForm',
 
@@ -165,18 +180,8 @@ export default Vue.extend({
       showHtml: false,
       selectedRedirectURL: '',
       isDesignerOpen: false,
-      design: {
-        heading: 'Subscribe to our newsletter',
-        button: 'Subscribe',
-        showName: true,
-        consent: '',
-        success: 'Thanks! Please check your inbox to confirm.',
-        bg: '#ffffff',
-        text: '#1a1a2e',
-        accent: '#0db7df',
-        radius: 8,
-        fields: [],
-      },
+      design: defaultDesign(),
+      globalDesign: null,
       dragIndex: null,
     };
   },
@@ -217,7 +222,40 @@ export default Vue.extend({
       this.dragIndex = null;
     },
 
+    isValidDesign(value) {
+      if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
+      const fields = value.fields || [];
+      if (!Array.isArray(fields)) return false;
+      const seen = new Set();
+      return fields.every((field) => {
+        if (!field || typeof field !== 'object' || !['text', 'email', 'select', 'checkbox', 'consent'].includes(field.type)
+          || typeof field.label !== 'string' || !field.label.trim()) return false;
+        const key = String(field.key || '').trim();
+        if (field.type !== 'consent' && (!key || !/^[a-zA-Z][a-zA-Z0-9_-]{0,63}$/.test(key))) return false;
+        if (key && seen.has(key)) return false;
+        if (key) seen.add(key);
+        return field.type !== 'select' || (Array.isArray(field.options) && field.options.length > 0);
+      });
+    },
+
+    designFrom(value) {
+      const source = value || this.globalDesign || defaultDesign();
+      return {
+        ...defaultDesign(),
+        ...source,
+        fields: (source.fields || []).map((field) => ({ ...field, optionsText: (field.options || []).join('\n') })),
+      };
+    },
+
+    loadDesign() {
+      const target = this.designerList;
+      const saved = target && target.attribs && target.attribs.hosted_form;
+      this.design = this.designFrom(this.isValidDesign(saved) ? saved : this.globalDesign);
+    },
+
     async saveDesign() {
+      const target = this.designerList;
+      if (!target) return;
       const value = {
         ...this.design,
         fields: this.design.fields.map((field) => ({
@@ -226,7 +264,9 @@ export default Vue.extend({
           options: field.type === 'select' ? field.optionsText.split('\n').map((v) => v.trim()).filter(Boolean) : [],
         })),
       };
-      await this.$api.updateSettingsByKey('app.public_subscription_form', value);
+      const attribs = { ...(target.attribs || {}), hosted_form: value };
+      await this.$api.updateList({ ...target, attribs });
+      this.$set(target, 'attribs', attribs);
       this.$utils.toast('Form saved');
     },
 
@@ -289,9 +329,18 @@ export default Vue.extend({
     },
 
     copyCarlUrl() {
-      const list = this.checked.length ? this.publicLists[parseInt(this.checked[0], 10)] : null;
+      const list = this.designerList;
       const listParam = list ? `&list=${encodeURIComponent(list.id)}` : '';
       return `https://app.workmateos.co.uk/workmate/agent/copy-carl?source=reach&surface=forms${listParam}`;
+    },
+
+    designerList() {
+      return this.checked.length ? this.publicLists[parseInt(this.checked[0], 10)] : null;
+    },
+
+    hostedFormURL() {
+      const list = this.designerList;
+      return `${this.serverConfig.root_url}/subscription/form${list ? `?l=${encodeURIComponent(list.uuid)}` : ''}`;
     },
 
     designedHTML() {
@@ -382,6 +431,7 @@ export default Vue.extend({
   watch: {
     checked() {
       this.renderHTML();
+      this.loadDesign();
     },
 
     selectedRedirectURL() {
@@ -393,7 +443,8 @@ export default Vue.extend({
     if (!this.$can('settings:get')) return;
     this.$api.getSettings().then((settings) => {
       const saved = settings['app.public_subscription_form'];
-      if (saved) this.design = { ...this.design, ...saved, fields: (saved.fields || []).map((field) => ({ ...field, optionsText: (field.options || []).join('\n') })) };
+      this.globalDesign = this.isValidDesign(saved) ? saved : defaultDesign();
+      this.loadDesign();
     });
   },
 });
