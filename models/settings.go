@@ -4,14 +4,16 @@ import "gopkg.in/volatiletech/null.v6"
 
 // PublicSubscriptionForm is the optional public subscription form configuration.
 type PublicSubscriptionForm struct {
-	Heading string                        `json:"heading"`
-	Button  string                        `json:"button"`
-	Success string                        `json:"success"`
-	Bg      string                        `json:"bg"`
-	Text    string                        `json:"text"`
-	Accent  string                        `json:"accent"`
-	Radius  int                           `json:"radius"`
-	Fields  []PublicSubscriptionFormField `json:"fields"`
+	Heading  string                        `json:"heading"`
+	Button   string                        `json:"button"`
+	Success  string                        `json:"success"`
+	ShowName bool                          `json:"showName"`
+	Consent  string                        `json:"consent"`
+	Bg       string                        `json:"bg"`
+	Text     string                        `json:"text"`
+	Accent   string                        `json:"accent"`
+	Radius   int                           `json:"radius"`
+	Fields   []PublicSubscriptionFormField `json:"fields"`
 }
 
 // PublicSubscriptionFormField is one administrator-configured subscriber attribute.

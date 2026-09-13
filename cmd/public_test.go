@@ -30,7 +30,7 @@ func TestNormalizeSubscriptionFormFields(t *testing.T) {
 
 func TestResolveSubscriptionForm(t *testing.T) {
 	global := models.PublicSubscriptionForm{Heading: "Global"}
-	valid := models.PublicSubscriptionForm{Heading: "List one", Fields: []models.PublicSubscriptionFormField{{Key: "company", Type: "text", Label: "Company"}}}
+	valid := models.PublicSubscriptionForm{Heading: "List one", ShowName: false, Consent: "I agree", Fields: []models.PublicSubscriptionFormField{{Key: "company", Type: "text", Label: "Company"}}}
 
 	tests := []struct {
 		name      string
@@ -72,6 +72,9 @@ func TestResolveSubscriptionForm(t *testing.T) {
 			got := resolveSubscriptionForm(global, tt.lists, tt.requested)
 			if got.Heading != tt.want {
 				t.Fatalf("heading = %q, want %q", got.Heading, tt.want)
+			}
+			if tt.name == "uses valid list schema" && (got.ShowName || got.Consent != "I agree") {
+				t.Fatalf("list form options were not preserved: %#v", got)
 			}
 		})
 	}
