@@ -8,9 +8,14 @@
         </h1>
       </div>
       <div class="column has-text-right">
-        <b-field v-if="$can('templates:manage')" expanded>
-          <b-button expanded type="is-primary" icon-left="plus" class="btn-new" @click="showNewForm">
+        <b-field v-if="$can('templates:manage')" grouped position="is-right">
+          <b-button type="is-primary" icon-left="plus" class="btn-new" @click="showNewForm">
             {{ $t('globals.buttons.new') }}
+          </b-button>
+          <b-button tag="a" type="is-primary" icon-left="message-text-outline" class="workmate-return-pill"
+            href="https://app.workmateos.co.uk/workmate/agent/copy-carl?source=reach&surface=templates"
+            aria-label="Ask Copy Carl to design it for you">
+            Ask Copy Carl to design it for you
           </b-button>
         </b-field>
       </div>
