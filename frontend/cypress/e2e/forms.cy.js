@@ -63,6 +63,10 @@ describe('Forms', () => {
   });
 
   it('Saves ordered fields and submits their answers', () => {
+    let listUUID;
+    cy.request(`${apiUrl}/api/lists`).then((response) => {
+      listUUID = response.body.data.results.find((list) => list.name === 'Opt-in list').uuid;
+    });
     cy.get('[data-cy=lists] .checkbox').first().click();
     cy.get('[data-cy=btn-open-designer]').click();
     cy.get('[data-cy=btn-add-field]').click();
@@ -78,17 +82,66 @@ describe('Forms', () => {
     cy.get('[data-cy=btn-save-designer]').click();
     cy.get('[data-cy=btn-close-designer]').click();
     cy.reload();
+    cy.get('[data-cy=lists] .checkbox').first().click();
     cy.get('[data-cy=btn-open-designer]').click();
     cy.get('[data-cy=designer-field]').first().should('contain', 'Department');
     cy.get('[data-cy=form-designer]').should('contain', 'name="attribs.field_1"');
     cy.get('[data-cy=btn-close-designer]').click();
-    cy.loginAndVisit(`${apiUrl}/subscription/form`);
+    cy.loginAndVisit(`${apiUrl}/subscription/form?l=${listUUID}`);
     cy.get('input[name=email]').type('fields@test.com');
     cy.get('input[name="attribs.field_1"]').type('WorkMate');
     cy.get('button[type=submit]').click();
     cy.request(`${apiUrl}/api/subscribers`).its('body.data.results').should((subs) => {
       expect(subs.find((sub) => sub.email === 'fields@test.com').attribs.field_1).to.equal('WorkMate');
     });
+  });
+
+  it('Keeps hosted form schemas with their selected public list', () => {
+    let first;
+    let second;
+    cy.request('POST', `${apiUrl}/api/lists`, { name: 'per-list-first', type: 'public', optin: 'single' }).then((response) => {
+      first = response.body.data;
+    });
+    cy.request('POST', `${apiUrl}/api/lists`, { name: 'per-list-second', type: 'public', optin: 'single' }).then((response) => {
+      second = response.body.data;
+    });
+    cy.reload();
+
+    cy.contains('ul[data-cy=lists] label', 'per-list-first').click();
+    cy.get('[data-cy=btn-open-designer]').click();
+    cy.get('[data-cy=btn-add-field]').click();
+    cy.get('[data-cy=designer-field]').first().find('input').first().clear().type('First company');
+    cy.get('[data-cy=btn-save-designer]').click();
+    cy.get('[data-cy=btn-close-designer]').click();
+    cy.contains('ul[data-cy=lists] label', 'per-list-first').click();
+
+    cy.contains('ul[data-cy=lists] label', 'per-list-second').click();
+    cy.get('[data-cy=btn-open-designer]').click();
+    cy.get('[data-cy=btn-add-field]').click();
+    cy.get('[data-cy=designer-field]').first().find('input').first().clear().type('Second company');
+    cy.get('[data-cy=btn-save-designer]').click();
+    cy.get('[data-cy=btn-close-designer]').click();
+
+    cy.contains('ul[data-cy=lists] label', 'per-list-second').click();
+    cy.contains('ul[data-cy=lists] label', 'per-list-first').click();
+    cy.get('[data-cy=btn-open-designer]').click();
+    cy.get('[data-cy=form-designer]').should('contain', 'First company');
+    cy.get('[data-cy=form-designer]').should('contain', `list_uuids:["${first.uuid}"]`);
+    cy.get('[data-cy=btn-close-designer]').click();
+    cy.get('[data-cy=url]').should('have.attr', 'href', `${apiUrl}/subscription/form?l=${first.uuid}`);
+    cy.loginAndVisit(`${apiUrl}/subscription/form?l=${first.uuid}`);
+    cy.get('label').should('contain', 'First company');
+
+    cy.loginAndVisit('/admin/lists/forms');
+    cy.contains('ul[data-cy=lists] label', 'per-list-second').click();
+    cy.get('[data-cy=btn-open-designer]').click();
+    cy.get('[data-cy=form-designer]').should('contain', 'Second company');
+    cy.get('[data-cy=form-designer]').should('contain', `list_uuids:["${second.uuid}"]`);
+    cy.get('[data-cy=btn-close-designer]').click();
+    cy.get('[data-cy=url]').should('have.attr', 'href', `${apiUrl}/subscription/form?l=${second.uuid}`);
+    cy.loginAndVisit(`${apiUrl}/subscription/form?l=${second.uuid}`);
+    cy.get('label').should('contain', 'Second company');
+    cy.get('label').should('not.contain', 'First company');
   });
 
   it('Unsubscribes', () => {

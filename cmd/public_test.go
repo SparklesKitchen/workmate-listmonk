@@ -28,6 +28,55 @@ func TestNormalizeSubscriptionFormFields(t *testing.T) {
 	}
 }
 
+func TestResolveSubscriptionForm(t *testing.T) {
+	global := models.PublicSubscriptionForm{Heading: "Global"}
+	valid := models.PublicSubscriptionForm{Heading: "List one", Fields: []models.PublicSubscriptionFormField{{Key: "company", Type: "text", Label: "Company"}}}
+
+	tests := []struct {
+		name      string
+		lists     []models.List
+		requested []string
+		want      string
+	}{
+		{
+			name:      "uses valid list schema",
+			lists:     []models.List{{UUID: "list-one", Attribs: models.JSON{"hosted_form": valid}}},
+			requested: []string{"list-one"},
+			want:      "List one",
+		},
+		{
+			name:      "falls back when schema is missing",
+			lists:     []models.List{{UUID: "list-one"}},
+			requested: []string{"list-one"},
+			want:      "Global",
+		},
+		{
+			name:      "falls back when schema is invalid",
+			lists:     []models.List{{UUID: "list-one", Attribs: models.JSON{"hosted_form": models.PublicSubscriptionForm{Fields: []models.PublicSubscriptionFormField{{Key: "bad key", Type: "text", Label: "Bad"}}}}}},
+			requested: []string{"list-one"},
+			want:      "Global",
+		},
+		{
+			name: "uses first requested list",
+			lists: []models.List{
+				{UUID: "list-one", Attribs: models.JSON{"hosted_form": models.PublicSubscriptionForm{Heading: "First"}}},
+				{UUID: "list-two", Attribs: models.JSON{"hosted_form": models.PublicSubscriptionForm{Heading: "Second"}}},
+			},
+			requested: []string{"list-two", "list-one"},
+			want:      "Second",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := resolveSubscriptionForm(global, tt.lists, tt.requested)
+			if got.Heading != tt.want {
+				t.Fatalf("heading = %q, want %q", got.Heading, tt.want)
+			}
+		})
+	}
+}
+
 func TestCollectSubscriptionFormAttribs(t *testing.T) {
 	fields := []models.PublicSubscriptionFormField{
 		{Key: "company", Type: "text", Label: "Company", Required: true},

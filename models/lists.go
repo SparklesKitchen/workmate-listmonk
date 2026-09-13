@@ -25,6 +25,7 @@ type List struct {
 	Status           string         `db:"status" json:"status"`
 	Tags             pq.StringArray `db:"tags" json:"tags"`
 	Description      string         `db:"description" json:"description"`
+	Attribs          JSON           `db:"attribs" json:"attribs"`
 	SubscriberCount  int            `db:"subscriber_count" json:"subscriber_count"`
 	SubscriberCounts StringIntMap   `db:"subscriber_statuses" json:"subscriber_statuses"`
 	SubscriberID     int            `db:"subscriber_id" json:"-"`
