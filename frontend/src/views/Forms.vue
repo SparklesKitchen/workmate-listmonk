@@ -125,7 +125,7 @@
             <b-field label="Corner radius">
               <b-slider v-model="design.radius" :min="0" :max="24" />
             </b-field>
-            <b-button type="is-primary" @click="saveDesign" data-cy="btn-save-designer">Save form</b-button>
+            <b-button v-if="$can('settings:manage')" type="is-primary" @click="saveDesign" data-cy="btn-save-designer">Save form</b-button>
           </div>
           <div class="column is-4">
             <h5>Preview</h5>
@@ -194,8 +194,11 @@ export default Vue.extend({
     },
 
     addField() {
+      const keys = new Set(this.design.fields.map((field) => field.key));
+      let keyIndex = this.design.fields.length + 1;
+      while (keys.has(`field_${keyIndex}`)) keyIndex += 1;
       this.design.fields.push({
-        key: `field_${this.design.fields.length + 1}`, type: 'text', label: 'New field', required: false, optionsText: '',
+        key: `field_${keyIndex}`, type: 'text', label: 'New field', required: false, optionsText: '',
       });
     },
 
@@ -377,6 +380,7 @@ export default Vue.extend({
   },
 
   created() {
+    if (!this.$can('settings:get')) return;
     this.$api.getSettings().then((settings) => {
       const saved = settings['app.public_subscription_form'];
       if (saved) this.design = { ...this.design, ...saved, fields: (saved.fields || []).map((field) => ({ ...field, optionsText: (field.options || []).join('\n') })) };
