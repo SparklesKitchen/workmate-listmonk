@@ -106,8 +106,8 @@ var publicFormFieldKeyRE = regexp.MustCompile(`^[a-zA-Z][a-zA-Z0-9_-]{0,63}$`)
 
 func normalizeSubscriptionForm(in models.PublicSubscriptionForm) (models.PublicSubscriptionForm, bool) {
 	out := in
-	// An empty setting is the legacy default, which always showed the name field.
-	if in.Heading == "" && in.Button == "" && in.Success == "" && !in.ShowName && in.Consent == "" && in.Bg == "" && in.Text == "" && in.Accent == "" && in.Radius == 0 && len(in.Fields) == 0 {
+	// Legacy forms and schemas without showName always showed the name field.
+	if !in.ShowNameSet {
 		out.ShowName = true
 	}
 	out.Fields = nil
