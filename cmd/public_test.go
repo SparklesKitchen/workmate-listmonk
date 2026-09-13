@@ -8,7 +8,12 @@ import (
 )
 
 func TestNormalizeSubscriptionFormFields(t *testing.T) {
-	form, ok := normalizeSubscriptionForm(models.PublicSubscriptionForm{Fields: []models.PublicSubscriptionFormField{
+	form, ok := normalizeSubscriptionForm(models.PublicSubscriptionForm{})
+	if !ok || !form.ShowName {
+		t.Fatalf("empty form should preserve the legacy name field default, got %#v, %v", form, ok)
+	}
+
+	form, ok = normalizeSubscriptionForm(models.PublicSubscriptionForm{Fields: []models.PublicSubscriptionFormField{
 		{Key: "company", Type: "text", Label: "Company", Required: true},
 		{Key: "size", Type: "select", Label: "Team size", Options: []string{"1-10", "11-50"}},
 		{Type: "consent", Label: "I agree"},
