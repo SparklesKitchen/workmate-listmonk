@@ -129,7 +129,9 @@
             <b-field label="Corner radius">
               <b-slider v-model="design.radius" :min="0" :max="24" />
             </b-field>
-            <b-button v-if="$can('settings:manage')" type="is-primary" @click="saveDesign" data-cy="btn-save-designer">Save form</b-button>
+            <b-button v-if="$can('settings:manage') && designerList
+              && ($can('lists:manage_all') || $canList(designerList.id, 'list:manage'))"
+              type="is-primary" @click="saveDesign" data-cy="btn-save-designer">Save form</b-button>
           </div>
           <div class="column is-4">
             <h5>Preview</h5>
