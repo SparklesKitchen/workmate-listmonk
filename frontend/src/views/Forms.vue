@@ -343,8 +343,8 @@ export default Vue.extend({
         + `<${'script'}>(function(){var w=document.getElementById("${id}"),f=w.querySelector("form"),m=w.querySelector("[data-nl-msg]");`
         + 'f.addEventListener("submit",function(e){e.preventDefault();var a={};'
         + 'f.querySelectorAll("[data-nl-field]").forEach(function(i){a[i.dataset.nlField]=i.type==="checkbox"?(i.checked?"true":""):i.value;});'
-        + 'var p={email:f.email.value,name:f.name?f.name.value:"",list_uuids:'
-        + JSON.stringify(uuids) + ',attribs:a};'
+        + `var p={email:f.email.value,name:f.name?f.name.value:"",list_uuids:${
+          JSON.stringify(uuids)},attribs:a};`
         + 'var h=f.querySelector("[name=\\"h-captcha-response\\"]"),x=f.querySelector("[name=\\"altcha\\"]");'
         + 'if(h)p["h-captcha-response"]=h.value;if(x)p.altcha=x.value;'
         + `fetch("${root}/api/public/subscription",{method:"POST",headers:{"Content-Type":"application/json"},`
