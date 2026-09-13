@@ -65,6 +65,10 @@
             data-cy="btn-open-designer" @click="isDesignerOpen = true">
             Open form designer
           </b-button>
+          <b-button tag="a" type="is-primary" icon-left="message-text-outline" class="mt-2 workmate-return-pill"
+            :href="copyCarlUrl" aria-label="Ask Copy Carl to design it for you">
+            Ask Copy Carl to design it for you
+          </b-button>
           <p v-if="checked.length === 0" class="is-size-7 has-text-grey mt-2">
             Select at least one list above first.
           </p>
@@ -229,6 +233,12 @@ export default Vue.extend({
 
     isWorkMateCustomer() {
       return this.profile.userRole && this.profile.userRole.name === 'WorkMate Customer';
+    },
+
+    copyCarlUrl() {
+      const list = this.checked.length ? this.publicLists[parseInt(this.checked[0], 10)] : null;
+      const listParam = list ? `&list=${encodeURIComponent(list.id)}` : '';
+      return `https://app.workmateos.co.uk/workmate/agent/copy-carl?source=reach&surface=forms${listParam}`;
     },
 
     designedHTML() {
