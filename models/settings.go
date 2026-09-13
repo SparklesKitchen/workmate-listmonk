@@ -2,21 +2,43 @@ package models
 
 import "gopkg.in/volatiletech/null.v6"
 
+// PublicSubscriptionForm is the optional public subscription form configuration.
+type PublicSubscriptionForm struct {
+	Heading string                        `json:"heading"`
+	Button  string                        `json:"button"`
+	Success string                        `json:"success"`
+	Bg      string                        `json:"bg"`
+	Text    string                        `json:"text"`
+	Accent  string                        `json:"accent"`
+	Radius  int                           `json:"radius"`
+	Fields  []PublicSubscriptionFormField `json:"fields"`
+}
+
+// PublicSubscriptionFormField is one administrator-configured subscriber attribute.
+type PublicSubscriptionFormField struct {
+	Key      string   `json:"key"`
+	Type     string   `json:"type"`
+	Label    string   `json:"label"`
+	Required bool     `json:"required"`
+	Options  []string `json:"options"`
+}
+
 // Settings represents the app settings stored in the DB.
 type Settings struct {
-	AppSiteName                   string   `json:"app.site_name"`
-	AppRootURL                    string   `json:"app.root_url"`
-	AppLogoURL                    string   `json:"app.logo_url"`
-	AppFaviconURL                 string   `json:"app.favicon_url"`
-	AppFromEmail                  string   `json:"app.from_email"`
-	AppNotifyEmails               []string `json:"app.notify_emails"`
-	EnablePublicSubPage           bool     `json:"app.enable_public_subscription_page"`
-	EnablePublicArchive           bool     `json:"app.enable_public_archive"`
-	EnablePublicArchiveRSSContent bool     `json:"app.enable_public_archive_rss_content"`
-	ShowOptinPage                 bool     `json:"app.show_optin_page"`
-	SendOptinConfirmation         bool     `json:"app.send_optin_confirmation"`
-	CheckUpdates                  bool     `json:"app.check_updates"`
-	AppLang                       string   `json:"app.lang"`
+	AppSiteName                   string                 `json:"app.site_name"`
+	AppRootURL                    string                 `json:"app.root_url"`
+	AppLogoURL                    string                 `json:"app.logo_url"`
+	AppFaviconURL                 string                 `json:"app.favicon_url"`
+	AppFromEmail                  string                 `json:"app.from_email"`
+	AppNotifyEmails               []string               `json:"app.notify_emails"`
+	EnablePublicSubPage           bool                   `json:"app.enable_public_subscription_page"`
+	AppPublicSubscriptionForm     PublicSubscriptionForm `json:"app.public_subscription_form"`
+	EnablePublicArchive           bool                   `json:"app.enable_public_archive"`
+	EnablePublicArchiveRSSContent bool                   `json:"app.enable_public_archive_rss_content"`
+	ShowOptinPage                 bool                   `json:"app.show_optin_page"`
+	SendOptinConfirmation         bool                   `json:"app.send_optin_confirmation"`
+	CheckUpdates                  bool                   `json:"app.check_updates"`
+	AppLang                       string                 `json:"app.lang"`
 
 	AppBatchSize             int    `json:"app.batch_size"`
 	AppConcurrency           int    `json:"app.concurrency"`

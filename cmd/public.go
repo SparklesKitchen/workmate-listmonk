@@ -9,6 +9,8 @@ import (
 	"image/png"
 	"io"
 	"net/http"
+	"net/url"
+	"regexp"
 	"strconv"
 	"strings"
 
@@ -90,12 +92,143 @@ type msgTpl struct {
 type subFormTpl struct {
 	publicTpl
 	Lists   []models.List
+	Form    models.PublicSubscriptionForm
 	Captcha struct {
 		Enabled    bool
 		Provider   string
 		Key        string
 		Complexity int
 	}
+}
+
+var publicFormFieldKeyRE = regexp.MustCompile(`^[a-zA-Z][a-zA-Z0-9_-]{0,63}$`)
+
+func normalizeSubscriptionForm(in models.PublicSubscriptionForm) (models.PublicSubscriptionForm, bool) {
+	out := in
+	out.Fields = nil
+	seen := map[string]bool{}
+	for _, inField := range in.Fields {
+		field := inField
+		field.Key = strings.TrimSpace(field.Key)
+		field.Type = strings.ToLower(strings.TrimSpace(field.Type))
+		field.Label = strings.TrimSpace(field.Label)
+		if field.Type != "text" && field.Type != "email" && field.Type != "select" && field.Type != "checkbox" && field.Type != "consent" {
+			return models.PublicSubscriptionForm{}, false
+		}
+		if field.Type == "consent" {
+			field.Required = true
+		}
+		if field.Label == "" || (field.Key == "" && field.Type != "consent") || (field.Key != "" && (!publicFormFieldKeyRE.MatchString(field.Key) || seen[field.Key])) {
+			return models.PublicSubscriptionForm{}, false
+		}
+		if field.Key != "" {
+			seen[field.Key] = true
+		}
+		if field.Type == "select" {
+			options := make([]string, 0, len(field.Options))
+			values := map[string]bool{}
+			for _, option := range field.Options {
+				option = strings.TrimSpace(option)
+				if option == "" || values[option] {
+					return models.PublicSubscriptionForm{}, false
+				}
+				values[option] = true
+				options = append(options, option)
+			}
+			if len(options) == 0 {
+				return models.PublicSubscriptionForm{}, false
+			}
+			field.Options = options
+		} else {
+			field.Options = nil
+		}
+		out.Fields = append(out.Fields, field)
+	}
+	return out, true
+}
+
+func collectSubscriptionFormAttribs(values url.Values, jsonAttribs map[string]string, fields []models.PublicSubscriptionFormField) (models.JSON, error) {
+	allowed := make(map[string]models.PublicSubscriptionFormField, len(fields))
+	for _, field := range fields {
+		if field.Key != "" {
+			allowed[field.Key] = field
+		}
+	}
+	if jsonAttribs != nil {
+		for key := range jsonAttribs {
+			if _, ok := allowed[key]; !ok {
+				return nil, echo.NewHTTPError(http.StatusBadRequest, "Please use the fields on this form.")
+			}
+		}
+	} else {
+		for key := range values {
+			if strings.HasPrefix(key, "attribs.") {
+				if _, ok := allowed[strings.TrimPrefix(key, "attribs.")]; !ok {
+					return nil, echo.NewHTTPError(http.StatusBadRequest, "Please use the fields on this form.")
+				}
+			}
+		}
+	}
+
+	attribs := models.JSON{}
+	for _, field := range fields {
+		value := ""
+		if jsonAttribs != nil {
+			value = strings.TrimSpace(jsonAttribs[field.Key])
+		} else if field.Key == "" {
+			value = strings.TrimSpace(values.Get("consent"))
+		} else {
+			value = strings.TrimSpace(values.Get("attribs." + field.Key))
+		}
+		switch field.Type {
+		case "checkbox", "consent":
+			checked := value == "true" || value == "on" || value == "1"
+			if field.Required && !checked {
+				return nil, echo.NewHTTPError(http.StatusBadRequest, "Please complete the required fields.")
+			}
+			if checked && field.Key != "" {
+				attribs[field.Key] = true
+			}
+		case "select":
+			if value == "" && !field.Required {
+				continue
+			}
+			valid := false
+			for _, option := range field.Options {
+				if value == option {
+					valid = true
+					break
+				}
+			}
+			if !valid {
+				return nil, echo.NewHTTPError(http.StatusBadRequest, "Please choose an option from the list.")
+			}
+			attribs[field.Key] = value
+		default:
+			if value == "" {
+				if field.Required {
+					return nil, echo.NewHTTPError(http.StatusBadRequest, "Please complete the required fields.")
+				}
+				continue
+			}
+			if len(value) > stdInputMaxLen || (field.Type == "email" && !strings.Contains(value, "@")) {
+				return nil, echo.NewHTTPError(http.StatusBadRequest, "Please enter a valid answer.")
+			}
+			attribs[field.Key] = value
+		}
+	}
+	return attribs, nil
+}
+
+func mergeSubscriptionAttribs(existing, accepted models.JSON) models.JSON {
+	out := models.JSON{}
+	for key, value := range existing {
+		out[key] = value
+	}
+	for key, value := range accepted {
+		out[key] = value
+	}
+	return out
 }
 
 var (
@@ -443,6 +576,12 @@ func (a *App) SubscriptionFormPage(c echo.Context) error {
 	out := subFormTpl{}
 	out.Title = a.i18n.T("public.sub")
 	out.Lists = lists
+	settings, err := a.core.GetSettings()
+	if err != nil {
+		return c.Render(http.StatusInternalServerError, tplMessage,
+			makeMsgTpl(a.i18n.T("public.errorTitle"), "", a.i18n.Ts("public.errorFetchingLists")))
+	}
+	out.Form, _ = normalizeSubscriptionForm(settings.AppPublicSubscriptionForm)
 
 	// Captcha configuration for template rendering.
 	if a.cfg.Security.Captcha.Altcha.Enabled {
@@ -726,9 +865,10 @@ func drawTransparentImage(h, w int) []byte {
 func (a *App) processSubForm(c echo.Context) (bool, error) {
 	// Get and validate fields.
 	var req struct {
-		Name          string   `form:"name" json:"name"`
-		Email         string   `form:"email" json:"email"`
-		FormListUUIDs []string `form:"l" json:"list_uuids"`
+		Name          string            `form:"name" json:"name"`
+		Email         string            `form:"email" json:"email"`
+		FormListUUIDs []string          `form:"l" json:"list_uuids"`
+		Attribs       map[string]string `json:"attribs"`
 	}
 	if err := c.Bind(&req); err != nil {
 		return false, err
@@ -757,6 +897,23 @@ func (a *App) processSubForm(c echo.Context) (bool, error) {
 		return false, echo.NewHTTPError(http.StatusBadRequest, a.i18n.T("subscribers.invalidName"))
 	}
 
+	settings, err := a.core.GetSettings()
+	if err != nil {
+		return false, err
+	}
+	form, validForm := normalizeSubscriptionForm(settings.AppPublicSubscriptionForm)
+	attribs := models.JSON{}
+	if validForm && len(form.Fields) > 0 {
+		values, err := c.FormParams()
+		if err != nil {
+			return false, err
+		}
+		attribs, err = collectSubscriptionFormAttribs(values, req.Attribs, form.Fields)
+		if err != nil {
+			return false, err
+		}
+	}
+
 	listUUIDs := pq.StringArray(req.FormListUUIDs)
 
 	// Fetch the list types and ensure that they are not private.
@@ -773,9 +930,10 @@ func (a *App) processSubForm(c echo.Context) (bool, error) {
 
 	// Insert the subscriber into the DB.
 	_, hasOptin, err := a.core.InsertSubscriber(models.Subscriber{
-		Name:   req.Name,
-		Email:  req.Email,
-		Status: models.SubscriberStatusEnabled,
+		Name:    req.Name,
+		Email:   req.Email,
+		Attribs: attribs,
+		Status:  models.SubscriberStatusEnabled,
 	}, nil, listUUIDs, false, true)
 	if err == nil {
 		return hasOptin, nil
@@ -791,6 +949,7 @@ func (a *App) processSubForm(c echo.Context) (bool, error) {
 		if err != nil {
 			return false, err
 		}
+		sub.Attribs = mergeSubscriptionAttribs(sub.Attribs, attribs)
 
 		// Update the subscriber's subscriptions in the DB.
 		_, hasOptin, err := a.core.UpdateSubscriberWithLists(sub.ID, sub, nil, listUUIDs, false, false, true, nil, true)

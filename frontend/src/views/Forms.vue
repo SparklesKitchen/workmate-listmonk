@@ -87,9 +87,11 @@
     </div>
 
     <b-modal v-model="isDesignerOpen" scroll="keep" :width="1100">
-      <div class="box" style="position: relative;">
+      <div class="box" style="position: relative;" data-cy="form-designer">
         <b-button size="is-small" style="position:absolute;top:14px;right:14px;"
-          aria-label="Close" data-cy="btn-close-designer" @click="isDesignerOpen = false">&#215;</b-button>
+          aria-label="Close" data-cy="btn-close-designer" @click="isDesignerOpen = false">
+&#215;
+</b-button>
         <h4>Form designer</h4>
         <div class="columns mt-2">
           <div class="column is-4">
@@ -99,6 +101,21 @@
             <b-field label="Consent text (optional)">
               <b-input v-model="design.consent" placeholder="I agree to receive this newsletter" />
             </b-field>
+            <h5 class="mt-4">Fields</h5>
+            <b-button size="is-small" @click="addField" data-cy="btn-add-field">Add field</b-button>
+            <div v-for="(field, index) in design.fields" :key="field.key" class="box mt-2"
+              draggable="true" @dragstart="dragIndex = index" @dragover.prevent @drop="moveField(index)" data-cy="designer-field">
+              <b-field label="Label"><b-input v-model="field.label" /></b-field>
+              <b-field label="Field key"><b-input v-model="field.key" /></b-field>
+              <b-field label="Type">
+                <b-select v-model="field.type">
+                  <option>text</option><option>email</option><option>select</option><option>checkbox</option><option>consent</option>
+                </b-select>
+              </b-field>
+              <b-field v-if="field.type === 'select'" label="Options, one per line"><b-input v-model="field.optionsText" type="textarea" /></b-field>
+              <b-checkbox v-model="field.required" :disabled="field.type === 'consent'">Required</b-checkbox>
+              <b-button size="is-small" type="is-danger" @click="removeField(index)">Remove</b-button>
+            </div>
             <b-field label="Success message"><b-input v-model="design.success" /></b-field>
             <div class="columns">
               <div class="column"><b-field label="Background"><input type="color" v-model="design.bg" aria-label="Background color" /></b-field></div>
@@ -108,6 +125,7 @@
             <b-field label="Corner radius">
               <b-slider v-model="design.radius" :min="0" :max="24" />
             </b-field>
+            <b-button type="is-primary" @click="saveDesign" data-cy="btn-save-designer">Save form</b-button>
           </div>
           <div class="column is-4">
             <h5>Preview</h5>
@@ -153,7 +171,9 @@ export default Vue.extend({
         text: '#1a1a2e',
         accent: '#0db7df',
         radius: 8,
+        fields: [],
       },
+      dragIndex: null,
     };
   },
 
@@ -171,6 +191,36 @@ export default Vue.extend({
       navigator.clipboard.writeText(this.designedHTML).then(() => {
         this.$utils.toast('Form HTML copied');
       });
+    },
+
+    addField() {
+      this.design.fields.push({
+        key: `field_${this.design.fields.length + 1}`, type: 'text', label: 'New field', required: false, optionsText: '',
+      });
+    },
+
+    removeField(index) {
+      this.design.fields.splice(index, 1);
+    },
+
+    moveField(index) {
+      if (this.dragIndex === null || this.dragIndex === index) return;
+      const field = this.design.fields.splice(this.dragIndex, 1)[0];
+      this.design.fields.splice(index, 0, field);
+      this.dragIndex = null;
+    },
+
+    async saveDesign() {
+      const value = {
+        ...this.design,
+        fields: this.design.fields.map((field) => ({
+          ...field,
+          required: field.type === 'consent' || field.required,
+          options: field.type === 'select' ? field.optionsText.split('\n').map((v) => v.trim()).filter(Boolean) : [],
+        })),
+      };
+      await this.$api.updateSettingsByKey('app.public_subscription_form', value);
+      this.$utils.toast('Form saved');
     },
 
     renderHTML() {
@@ -245,6 +295,21 @@ export default Vue.extend({
       const consent = d.consent
         ? `      <label style="${consentStyle}"><input type="checkbox" required style="margin-top:2px;" /> <span>${esc(d.consent)}</span></label>\n`
         : '';
+      const customFields = d.fields.map((field) => {
+        const key = esc(field.key);
+        const label = esc(field.label);
+        const required = field.required || field.type === 'consent' ? ' required' : '';
+        if (field.type === 'select') {
+          const options = field.optionsText.split('\n').map((v) => v.trim()).filter(Boolean)
+            .map((v) => `<option value="${esc(v)}">${esc(v)}</option>`)
+            .join('');
+          return `      <label>${label}<select name="attribs.${key}" data-nl-field="${key}"${required} style="${inputStyle}">${options}</select></label>\n`;
+        }
+        if (field.type === 'checkbox' || field.type === 'consent') {
+          return `      <label style="${consentStyle}"><input name="attribs.${key}" data-nl-field="${key}" type="checkbox"${required} /> <span>${label}</span></label>\n`;
+        }
+        return `      <label>${label}<input name="attribs.${key}" data-nl-field="${key}" type="${field.type}"${required} style="${inputStyle}" /></label>\n`;
+      }).join('');
       const nameField = d.showName
         ? `      <input type="text" name="name" placeholder="Name" style="${inputStyle}" />\n`
         : '';
@@ -254,16 +319,17 @@ export default Vue.extend({
         + `    <h3 style="margin:0 0 14px;font-size:19px;">${esc(d.heading)}</h3>\n`
         + `      <input type="email" name="email" required placeholder="E-mail" style="${inputStyle}" />\n${
           nameField
-        }${consent
+        }${consent}${customFields
         }    <button type="submit" style="width:100%;padding:11px 0;border:0;border-radius:${d.radius}px;`
         + `background:${d.accent};color:#fff;font:600 15px system-ui,sans-serif;cursor:pointer;">${esc(d.button)}</button>\n`
         + '    <p data-nl-msg style="display:none;margin:12px 0 0;font-size:14px;"></p>\n'
         + '  </form>\n'
         + '</div>\n'
         + `<${'script'}>(function(){var w=document.getElementById("${id}"),f=w.querySelector("form"),m=w.querySelector("[data-nl-msg]");`
-        + 'f.addEventListener("submit",function(e){e.preventDefault();'
+        + 'f.addEventListener("submit",function(e){e.preventDefault();var a={};'
+        + 'f.querySelectorAll("[data-nl-field]").forEach(function(i){a[i.dataset.nlField]=i.type==="checkbox"?(i.checked?"true":""):i.value;});'
         + `fetch("${root}/api/public/subscription",{method:"POST",headers:{"Content-Type":"application/json"},`
-        + `body:JSON.stringify({email:f.email.value,name:f.name?f.name.value:"",list_uuids:${JSON.stringify(uuids)}})})`
+        + `body:JSON.stringify({email:f.email.value,name:f.name?f.name.value:"",list_uuids:${JSON.stringify(uuids)},attribs:a})})`
         + `.then(function(r){m.style.display="block";if(r.ok){m.textContent="${esc(d.success)}";f.reset();}`
         + 'else{r.json().then(function(j){m.textContent=(j&&j.message)||"Something went wrong. Please try again.";});}})'
         + `.catch(function(){m.style.display="block";m.textContent="Something went wrong. Please try again.";});});})();</${'script'}>`;
@@ -292,6 +358,13 @@ export default Vue.extend({
     selectedRedirectURL() {
       this.renderHTML();
     },
+  },
+
+  created() {
+    this.$api.getSettings().then((settings) => {
+      const saved = settings['app.public_subscription_form'];
+      if (saved) this.design = { ...this.design, ...saved, fields: (saved.fields || []).map((field) => ({ ...field, optionsText: (field.options || []).join('\n') })) };
+    });
   },
 });
 </script>

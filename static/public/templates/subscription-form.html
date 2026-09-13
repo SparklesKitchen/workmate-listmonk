@@ -1,7 +1,7 @@
 {{ define "subscription-form" }}
 {{ template "header" . }}
 <section>
-    <h2>{{ L.T "public.subTitle" }}</h2>
+    <h2>{{ if .Data.Form.Heading }}{{ .Data.Form.Heading }}{{ else }}{{ L.T "public.subTitle" }}{{ end }}</h2>
 
     <form method="post" action="" class="form">
         <div>
@@ -15,6 +15,33 @@
                 <label for="name">{{ L.T "public.subName" }}</label>
                 <input id="name" name="name" type="text" placeholder="{{ L.T "public.subName" }}" >
             </p>
+
+            {{ range $field := .Data.Form.Fields }}
+                {{ if eq $field.Type "select" }}
+                    <p>
+                        <label for="attribs-{{ $field.Key }}">{{ $field.Label }}</label>
+                        <select id="attribs-{{ $field.Key }}" name="attribs.{{ $field.Key }}" {{ if $field.Required }}required{{ end }}>
+                            <option value=""></option>
+                            {{ range $option := $field.Options }}<option value="{{ $option }}">{{ $option }}</option>{{ end }}
+                        </select>
+                    </p>
+                {{ else if or (eq $field.Type "checkbox") (eq $field.Type "consent") }}
+                    <p>
+                        {{ if $field.Key }}
+                            <input id="attribs-{{ $field.Key }}" name="attribs.{{ $field.Key }}" type="checkbox" value="true" {{ if $field.Required }}required{{ end }}>
+                            <label for="attribs-{{ $field.Key }}">{{ $field.Label }}</label>
+                        {{ else }}
+                            <input id="consent" name="consent" type="checkbox" value="true" required>
+                            <label for="consent">{{ $field.Label }}</label>
+                        {{ end }}
+                    </p>
+                {{ else }}
+                    <p>
+                        <label for="attribs-{{ $field.Key }}">{{ $field.Label }}</label>
+                        <input id="attribs-{{ $field.Key }}" name="attribs.{{ $field.Key }}" type="{{ $field.Type }}" {{ if $field.Required }}required{{ end }}>
+                    </p>
+                {{ end }}
+            {{ end }}
 
             {{ if eq (len .Data.Lists) 1 }}
                 {{ range $i, $l := .Data.Lists }}
@@ -46,7 +73,7 @@
                 </div>
             {{ end }}
             <p>
-                <button type="submit" class="button">{{ L.T "public.sub" }}</button>
+                <button type="submit" class="button">{{ if .Data.Form.Button }}{{ .Data.Form.Button }}{{ else }}{{ L.T "public.sub" }}{{ end }}</button>
 
                 {{ if .EnablePublicArchive }}
                     <p class="right">
